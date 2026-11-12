@@ -3,6 +3,7 @@
 [![CI](https://github.com/beifeng778/deepseek-harness-git/actions/workflows/ci.yml/badge.svg)](https://github.com/beifeng778/deepseek-harness-git/actions/workflows/ci.yml)
 [![npm](https://img.shields.io/npm/v/deepseek-harness-git.svg)](https://www.npmjs.com/package/deepseek-harness-git)
 [![license](https://img.shields.io/npm/l/deepseek-harness-git.svg)](LICENSE)
+[![GitHub stars](https://img.shields.io/github/stars/beifeng778/deepseek-harness-git?style=social)](https://github.com/beifeng778/deepseek-harness-git/stargazers)
 
 A Git source-control page for the DeepSeek Harness Web GUI, modelled on the
 source-control panel people know from VS Code: repository discovery, staged and
@@ -227,3 +228,7 @@ the Actions tab (`workflow_dispatch`).
   there is no in-app credential prompt.
 - The panel is read/write through the local git CLI only; it does not use the
   Harness `worktrees` service or the agent's sandbox providers.
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=beifeng778/deepseek-harness-git&type=Date)](https://star-history.com/#beifeng778/deepseek-harness-git&Date)
