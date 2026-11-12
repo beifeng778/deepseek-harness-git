@@ -169,7 +169,10 @@ original and uses the Harness slot, locale, and Connection APIs.
 
 The npm name `deepseek-harness-git` is available and matches the GitHub
 repository name. `publishConfig.registry` points at the canonical registry, so a
-plain publish works even when the local install registry is a mirror:
+plain publish works even when the local install registry is a mirror.
+
+The **first release must be published manually**; that first upload creates the
+package, and only then can npm store a Trusted Publisher for it:
 
 ```
 npm publish
@@ -177,6 +180,20 @@ npm publish
 
 `prepublishOnly` runs `npm run check && npm test` before the upload, and
 `npm pack --dry-run` lists exactly the published files.
+
+After the package exists, configure GitHub Actions as a Trusted Publisher
+(package settings on npmjs.com, or the CLI):
+
+```
+npm trust github deepseek-harness-git \
+  --file publish.yml \
+  --repo beifeng778/deepseek-harness-git \
+  --yes
+```
+
+Allow **direct publish** (`npm publish`) for that trusted publisher. No
+`NPM_TOKEN` secret is required; the workflow uses OIDC through
+`permissions: id-token: write` and `--provenance`.
 
 Create the empty GitHub repository, then push:
 
@@ -186,9 +203,8 @@ git push -u origin main
 ```
 
 `.github/workflows/ci.yml` runs the tests on Node 20 and 22.
-`.github/workflows/publish.yml` publishes on a GitHub release; set the
-repository secret `NPM_TOKEN` first. `--provenance` requires a public
-repository.
+`.github/workflows/publish.yml` publishes on a GitHub release, or manually from
+the Actions tab (`workflow_dispatch`).
 
 ## Known limitations
 

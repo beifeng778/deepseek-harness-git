@@ -3,6 +3,7 @@ name: Publish
 on:
   release:
     types: [published]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -19,7 +20,9 @@ jobs:
           registry-url: https://registry.npmjs.org
       - run: npm run check
       - run: npm test
-      # `--provenance` requires a public repository and the id-token permission above.
+      # Trusted publishing (OIDC): configure the npm package's Trusted Publisher
+      # for this repository and workflow before the first automated release.
+      # The very first publish must be done manually; afterwards this workflow
+      # publishes without an NPM_TOKEN secret.
+      # `--provenance` requires a public repository and the id-token permission.
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
