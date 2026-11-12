@@ -32,6 +32,7 @@ import {
   fetchRemote,
   pull,
   push,
+  pushBranch,
   readRemoteBranches,
   setUpstream,
   init,
@@ -799,6 +800,25 @@ async function main() {
         remoteBranch: 'main',
       })
       assert.deepEqual(value, { branch: 'side', upstream: 'origin/main' })
+    })
+
+    await checkAsync('pushBranch creates a named remote branch and sets upstream', async () => {
+      run(clone, ['branch', 'publish-me', 'main'])
+      const value = await pushBranch(git, clone, {
+        localBranch: 'publish-me',
+        remote: 'origin',
+        remoteBranch: 'feature/published',
+      })
+      assert.equal(value.upstream, 'origin/feature/published')
+      const state = await readState(git, clone)
+      const branch = state.branches.find((entry) => entry.name === 'publish-me')
+      assert.equal(branch.upstream, 'origin/feature/published')
+      const remoteBranches = await readRemoteBranches(git, clone, { remote: 'origin' })
+      assert.ok(remoteBranches.branches.includes('feature/published'))
+      await assert.rejects(
+        () => pushBranch(git, clone, { localBranch: 'publish-me', remote: 'nope', remoteBranch: 'x' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/remote-not-found',
+      )
     })
   } finally {
     await fs.rm(remoteRepo, { recursive: true, force: true })

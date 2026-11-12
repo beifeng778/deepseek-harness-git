@@ -87,6 +87,11 @@ window.__ModuleLoader__.load({
       publishBranchHint: 'Push this branch and set its upstream',
       publishingBranch: 'Publishing branch…',
       branchPublished: 'Published {branch} and set its upstream.',
+      pushToRemote: 'Push to remote branch…',
+      pushToRemoteTitle: 'Push to remote branch',
+      pushToRemoteText: 'Push {branch} to a branch on the remote. A new name creates a new remote branch.',
+      pushToRemoteHint: 'Create or update a remote branch from {branch}',
+      branchPushedTo: 'Pushed {branch} to {upstream}.',
       setUpstream: 'Set upstream…',
       setUpstreamTitle: 'Set upstream',
       setUpstreamText: 'Choose the remote branch that {branch} should track.',
@@ -246,6 +251,11 @@ window.__ModuleLoader__.load({
       publishBranchHint: '推送此分支并设置上游',
       publishingBranch: '正在发布分支…',
       branchPublished: '已发布 {branch} 并设置上游。',
+      pushToRemote: '推送到远程分支…',
+      pushToRemoteTitle: '推送到远程分支',
+      pushToRemoteText: '将 {branch} 推送到远程分支；新名称会创建新的远程分支。',
+      pushToRemoteHint: '从 {branch} 创建或更新远程分支',
+      branchPushedTo: '已将 {branch} 推送到 {upstream}。',
       setUpstream: '设置上游…',
       setUpstreamTitle: '设置上游',
       setUpstreamText: '选择 {branch} 要跟踪的远程分支。',
@@ -1425,6 +1435,73 @@ window.__ModuleLoader__.load({
         }, t('delete')))))
     }
 
+    function PushRemoteDialog({
+      t, repo, remotes, remote, branch, onRemote, onBranch, onCancel, onSave, busy,
+    }) {
+      const cancelRef = useRef(null)
+      useEffect(() => {
+        cancelRef.current?.focus?.()
+      }, [])
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') onCancel()
+        }
+        document.addEventListener('keydown', onKeyDown)
+        return () => document.removeEventListener('keydown', onKeyDown)
+      }, [onCancel])
+      const canSave = remote !== '' && branch.trim() !== '' && !busy
+      return h('div', {
+        className: 'dg-modal-backdrop',
+        onMouseDown: (event) => {
+          if (event.target === event.currentTarget) onCancel()
+        },
+      },
+      h('div', {
+        className: 'dg-modal',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': t('pushToRemoteTitle'),
+      },
+      h('span', { className: 'dg-modal-title' }, t('pushToRemoteTitle')),
+      h('span', { className: 'dg-modal-text' }, t('pushToRemoteText', { branch: repo?.branch ?? '' })),
+      remotes.length === 0
+        ? h('span', { className: 'dg-modal-text' }, t('noRemotes'))
+        : h(React.Fragment, null,
+          h('label', { className: 'dg-field' },
+            h('span', { className: 'dg-field-label' }, t('remote')),
+            h('select', {
+              className: 'dg-input dg-select',
+              value: remote,
+              disabled: Boolean(busy),
+              onChange: (event) => onRemote(event.target.value),
+            },
+            remotes.map((entry) => h('option', { key: entry.name, value: entry.name },
+              entry.url ? `${entry.name} — ${entry.url}` : entry.name)))),
+          h('label', { className: 'dg-field' },
+            h('span', { className: 'dg-field-label' }, t('remoteBranch')),
+            h('input', {
+              className: 'dg-input dg-select',
+              value: branch,
+              placeholder: t('remoteBranch'),
+              'aria-label': t('remoteBranch'),
+              disabled: Boolean(busy),
+              onChange: (event) => onBranch(event.target.value),
+            }))),
+      h('div', { className: 'dg-modal-actions' },
+        h('button', {
+          type: 'button',
+          ref: cancelRef,
+          className: 'dg-btn',
+          onClick: onCancel,
+        }, t('cancel')),
+        h('button', {
+          type: 'button',
+          className: 'dg-btn dg-btn-primary',
+          onClick: onSave,
+          disabled: !canSave,
+        }, busy === t('publishingBranch') ? h(Spinner, { size: 12 }) : null, t('push')))))
+    }
+
     function RepoManager({
       t, workspaceTitle, workspacePath, discovered, enabled, scanPhase, scanError, scanTruncated,
       onToggle, onSelectAll, onClear, onRescan, onClose,
@@ -1532,6 +1609,9 @@ window.__ModuleLoader__.load({
       const [upstreamPhase, setUpstreamPhase] = useState('idle')
       const [upstreamError, setUpstreamError] = useState(null)
       const [deleteTarget, setDeleteTarget] = useState(null)
+      const [pushRemoteOpen, setPushRemoteOpen] = useState(false)
+      const [pushRemote, setPushRemote] = useState('')
+      const [pushRemoteBranch, setPushRemoteBranch] = useState('')
 
       const busyRef = useRef(null)
       busyRef.current = busy
@@ -1916,6 +1996,43 @@ window.__ModuleLoader__.load({
         setMenu(null)
         setDeleteTarget(branch)
       }, [])
+
+      const openPushRemote = useCallback(() => {
+        setMenu(null)
+        const remotes = Array.isArray(snapshot?.remotes) ? snapshot.remotes : []
+        const preferred = remotes.find((entry) => entry.name === 'origin') ?? remotes[0] ?? null
+        setPushRemote(preferred?.name ?? '')
+        setPushRemoteBranch(repo?.branch ?? '')
+        setPushRemoteOpen(true)
+      }, [repo, snapshot])
+
+      const savePushRemote = useCallback(async () => {
+        if (
+          !activeRepoPath
+          || repo === null
+          || repo.branch === null
+          || pushRemote === ''
+          || pushRemoteBranch.trim() === ''
+        ) return
+        const remoteBranch = pushRemoteBranch.trim()
+        const value = await run(
+          t('publishingBranch'),
+          () => call('pushBranch', {
+            cwd: activeRepoPath,
+            localBranch: repo.branch,
+            remote: pushRemote,
+            remoteBranch,
+          }),
+          (result) => t('branchPushedTo', {
+            branch: repo.branch,
+            upstream: result?.upstream ?? `${pushRemote}/${remoteBranch}`,
+          }),
+        )
+        if (value !== undefined) {
+          setPushRemoteOpen(false)
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, loadState, pushRemote, pushRemoteBranch, repo, run, t])
 
       const publishBranch = useCallback(async () => {
         if (!activeRepoPath || repo === null || repo.branch === null) return
@@ -2355,6 +2472,18 @@ window.__ModuleLoader__.load({
                       h('span', { className: 'dg-menu-item-path' },
                         repo.upstream ?? t('noUpstream'))))
                     : null,
+                  repo.branch !== null
+                    ? h('button', {
+                      type: 'button',
+                      className: 'dg-menu-item',
+                      onClick: openPushRemote,
+                    },
+                    h('span', { className: 'dg-menu-check' }),
+                    h('span', { className: 'dg-menu-item-main' },
+                      h('span', { className: 'dg-menu-item-title' }, t('pushToRemote')),
+                      h('span', { className: 'dg-menu-item-path' },
+                        t('pushToRemoteHint', { branch: repo.branch }))))
+                    : null,
                   h('div', { className: 'dg-menu-sep' }),
                   h('div', { className: 'dg-menu-label' }, t('newBranch')),
                   h('div', { className: 'dg-menu-input-row' },
@@ -2631,6 +2760,20 @@ window.__ModuleLoader__.load({
             branch: deleteTarget,
             onCancel: () => setDeleteTarget(null),
             onConfirm: () => void confirmDeleteBranch(),
+            busy,
+          })
+          : null,
+        pushRemoteOpen
+          ? h(PushRemoteDialog, {
+            t,
+            repo,
+            remotes: Array.isArray(snapshot?.remotes) ? snapshot.remotes : [],
+            remote: pushRemote,
+            branch: pushRemoteBranch,
+            onRemote: setPushRemote,
+            onBranch: setPushRemoteBranch,
+            onCancel: () => setPushRemoteOpen(false),
+            onSave: () => void savePushRemote(),
             busy,
           })
           : null,

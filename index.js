@@ -832,6 +832,31 @@ export async function push(gitPath, cwd) {
   return { output: clean(result.stderr || result.stdout) }
 }
 
+/** Push one local branch to a named remote branch and set its upstream. */
+export async function pushBranch(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const localBranch = normalizeBranch(payload.localBranch)
+  const remote = normalizeRemote(payload.remote)
+  const remoteBranch = normalizeBranch(payload.remoteBranch)
+  const remotes = await listRemotes(gitPath, root)
+  if (!remotes.some((entry) => entry.name === remote)) {
+    throw new GitPanelError('git/remote-not-found', `Unknown remote ${JSON.stringify(remote)}.`)
+  }
+  await mustGit(gitPath, root, ['rev-parse', '--verify', `refs/heads/${localBranch}`])
+  const result = await runGit(
+    gitPath,
+    root,
+    ['push', '--set-upstream', remote, `${localBranch}:refs/heads/${remoteBranch}`],
+    NETWORK_TIMEOUT_MS,
+  )
+  if (!result.ok) throw new GitPanelError('git/push-failed', result.message)
+  return {
+    branch: localBranch,
+    upstream: `${remote}/${remoteBranch}`,
+    output: clean(result.stderr || result.stdout),
+  }
+}
+
 /** List the fetched branches of one remote, without the remote prefix. */
 export async function readRemoteBranches(gitPath, cwd, payload = {}) {
   const root = await mustRepoRoot(gitPath, cwd)
@@ -1409,6 +1434,9 @@ export function createGitService(options = {}) {
     async push(ctx, payload) {
       return push(gitPath, await admitPath(ctx, payload.cwd))
     },
+    async pushBranch(ctx, payload) {
+      return pushBranch(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
     async init(ctx, payload) {
       return init(gitPath, await admitPath(ctx, payload.cwd))
     },
@@ -1418,7 +1446,7 @@ export function createGitService(options = {}) {
 const ACTIONS = new Set([
   'repos', 'scan', 'models', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
   'commit', 'checkout', 'createBranch', 'deleteBranch', 'remoteBranches', 'setUpstream',
-  'fetch', 'pull', 'push', 'init',
+  'fetch', 'pull', 'push', 'pushBranch', 'init',
 ])
 
 async function dispatch(service, ctx, endpoint, payload) {
