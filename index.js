@@ -104,6 +104,23 @@ function normalizePaths(input) {
   return [...new Set(input.map(normalizeRelPath))].slice(0, MAX_PATHS)
 }
 
+/** Validate one remote name before it reaches argv. */
+function normalizeRemote(input) {
+  if (typeof input !== 'string') {
+    throw new GitPanelError('git/bad-remote', 'A remote name is required.')
+  }
+  const name = input.trim()
+  if (
+    name === ''
+    || name.startsWith('-')
+    || name.includes('..')
+    || /[\s~^:?*[\\\x00-\x1f\x7f]/.test(name)
+  ) {
+    throw new GitPanelError('git/bad-remote', 'That is not a valid remote name.')
+  }
+  return name
+}
+
 /** Validate one local branch name before it reaches argv. */
 function normalizeBranch(input) {
   if (typeof input !== 'string') {
@@ -345,6 +362,20 @@ export function parseBranchHeader(header) {
     if (behind) result.behind = Number(behind[1])
   }
   return result
+}
+
+/** List configured remotes with their fetch URL. */
+async function listRemotes(gitPath, root) {
+  const result = await runGit(gitPath, root, ['remote', '-v'])
+  if (!result.ok) return []
+  const seen = new Map()
+  for (const line of result.stdout.split('\n')) {
+    const match = line.match(/^(\S+)\s+(\S+)\s+\((fetch|push)\)$/)
+    if (match === null) continue
+    const [, name, url] = match
+    if (!seen.has(name)) seen.set(name, { name, url })
+  }
+  return [...seen.values()]
 }
 
 /** Read branches, newest commit first; an unborn HEAD yields an empty list. */
@@ -589,7 +620,7 @@ export async function readState(gitPath, cwd) {
   const root = await repoRoot(gitPath, cwd)
   const generatedAt = new Date().toISOString()
   if (root === null) {
-    return { repo: null, staged: [], unstaged: [], conflicts: [], branches: [], commits: [], generatedAt }
+    return { repo: null, staged: [], unstaged: [], conflicts: [], branches: [], commits: [], remotes: [], generatedAt }
   }
   const statusOut = await mustGit(gitPath, root, [
     'status',
@@ -599,9 +630,10 @@ export async function readState(gitPath, cwd) {
     '--untracked-files=all',
   ])
   const parsed = parseStatus(statusOut)
-  const [branches, commits] = await Promise.all([
+  const [branches, commits, remotes] = await Promise.all([
     readBranches(gitPath, root),
     readCommits(gitPath, root),
+    listRemotes(gitPath, root),
   ])
   return {
     repo: { root, name: path.basename(root) || root, ...parsed.head },
@@ -610,6 +642,7 @@ export async function readState(gitPath, cwd) {
     conflicts: parsed.conflicts,
     branches,
     commits,
+    remotes,
     generatedAt,
   }
 }
@@ -781,6 +814,51 @@ export async function push(gitPath, cwd) {
   const result = await runGit(gitPath, root, args, NETWORK_TIMEOUT_MS)
   if (!result.ok) throw new GitPanelError('git/push-failed', result.message)
   return { output: clean(result.stderr || result.stdout) }
+}
+
+/** List the fetched branches of one remote, without the remote prefix. */
+export async function readRemoteBranches(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const remote = normalizeRemote(payload.remote)
+  const remotes = await listRemotes(gitPath, root)
+  if (!remotes.some((entry) => entry.name === remote)) {
+    throw new GitPanelError('git/remote-not-found', `Unknown remote ${JSON.stringify(remote)}.`)
+  }
+  const result = await runGit(gitPath, root, [
+    'for-each-ref',
+    '--sort=refname',
+    `refs/remotes/${remote}`,
+    '--format=%(refname:short)',
+  ])
+  if (!result.ok) throw new GitPanelError('git/branch-list-failed', result.message)
+  const prefix = `${remote}/`
+  const branches = result.stdout
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => line.startsWith(prefix) && line !== `${prefix}HEAD`)
+    .map((line) => line.slice(prefix.length))
+    .filter((name) => name !== '')
+    .slice(0, 500)
+  return { remote, branches }
+}
+
+/** Point one local branch at a remote-tracking branch. */
+export async function setUpstream(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const branch = normalizeBranch(payload.branch)
+  const remote = normalizeRemote(payload.remote)
+  const remoteBranch = normalizeBranch(payload.remoteBranch)
+  const remotes = await listRemotes(gitPath, root)
+  if (!remotes.some((entry) => entry.name === remote)) {
+    throw new GitPanelError('git/remote-not-found', `Unknown remote ${JSON.stringify(remote)}.`)
+  }
+  const upstream = `${remote}/${remoteBranch}`
+  try {
+    await mustGit(gitPath, root, ['branch', `--set-upstream-to=${upstream}`, branch])
+  } catch (error) {
+    throw new GitPanelError('git/upstream-failed', clean(error?.message ?? error) || 'Could not set the upstream branch.')
+  }
+  return { branch, upstream }
 }
 
 export async function init(gitPath, cwd) {
@@ -1297,6 +1375,12 @@ export function createGitService(options = {}) {
     async createBranch(ctx, payload) {
       return createBranch(gitPath, await admitPath(ctx, payload.cwd), payload)
     },
+    async remoteBranches(ctx, payload) {
+      return readRemoteBranches(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
+    async setUpstream(ctx, payload) {
+      return setUpstream(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
     async fetch(ctx, payload) {
       return fetchRemote(gitPath, await admitPath(ctx, payload.cwd))
     },
@@ -1314,7 +1398,8 @@ export function createGitService(options = {}) {
 
 const ACTIONS = new Set([
   'repos', 'scan', 'models', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
-  'commit', 'checkout', 'createBranch', 'fetch', 'pull', 'push', 'init',
+  'commit', 'checkout', 'createBranch', 'remoteBranches', 'setUpstream',
+  'fetch', 'pull', 'push', 'init',
 ])
 
 async function dispatch(service, ctx, endpoint, payload) {

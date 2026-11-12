@@ -83,6 +83,17 @@ window.__ModuleLoader__.load({
       aheadCount: '{n} ahead',
       behindCount: '{n} behind',
       noUpstream: 'No upstream',
+      setUpstream: 'Set upstream…',
+      setUpstreamTitle: 'Set upstream',
+      setUpstreamText: 'Choose the remote branch that {branch} should track.',
+      remote: 'Remote',
+      remoteBranch: 'Remote branch',
+      noRemotes: 'No remotes are configured for this repository.',
+      noRemoteBranches: 'No remote branches; fetch the remote first.',
+      loadingBranches: 'Loading branches…',
+      savingUpstream: 'Setting upstream…',
+      upstreamSet: 'Upstream set to {upstream}.',
+      save: 'Save',
       branchSwitched: 'Switched to {branch}',
       branchCreated: 'Created {branch}',
       branchRequired: 'Enter a branch name.',
@@ -220,6 +231,17 @@ window.__ModuleLoader__.load({
       aheadCount: '领先 {n} 个提交',
       behindCount: '落后 {n} 个提交',
       noUpstream: '无上游分支',
+      setUpstream: '设置上游…',
+      setUpstreamTitle: '设置上游',
+      setUpstreamText: '选择 {branch} 要跟踪的远程分支。',
+      remote: '远程仓库',
+      remoteBranch: '远程分支',
+      noRemotes: '这个仓库没有配置远程仓库。',
+      noRemoteBranches: '没有远程分支，请先抓取远程。',
+      loadingBranches: '正在加载分支…',
+      savingUpstream: '正在设置上游…',
+      upstreamSet: '上游已设置为 {upstream}。',
+      save: '保存',
       branchSwitched: '已切换到 {branch}',
       branchCreated: '已创建 {branch}',
       branchRequired: '请输入分支名称。',
@@ -462,6 +484,10 @@ window.__ModuleLoader__.load({
       .dg-modal-text{color:var(--dsw-alias-label-secondary);font-size:12.5px;line-height:1.6}
       .dg-modal-path{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11.5px;color:var(--dsw-alias-label-primary);overflow-wrap:anywhere}
       .dg-modal-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:2px}
+      .dg-field{display:flex;flex-direction:column;gap:4px}
+      .dg-field-label{font-size:11px;color:var(--dsw-alias-label-secondary)}
+      .dg-select{flex:none;height:28px;padding:0 6px}
+      .dg-modal-error{font-size:11.5px;line-height:1.5;color:var(--dsw-alias-state-error-primary);word-break:break-word}
       .dg-modal-wide{width:min(600px,100%)}
       .dg-manager-meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:11.5px;min-height:18px}
       .dg-repo-list{display:flex;flex-direction:column;gap:1px;max-height:min(360px,50vh);overflow:auto;padding:4px;border:0.5px solid var(--dsw-alias-border-l1);border-radius:8px;background:var(--dsw-alias-bg-base)}
@@ -1256,6 +1282,78 @@ window.__ModuleLoader__.load({
         }, t('discardConfirm')))))
     }
 
+    function UpstreamDialog({
+      t, repo, remotes, remote, branch, branches, phase, error, busy,
+      onRemote, onBranch, onCancel, onSave,
+    }) {
+      const cancelRef = useRef(null)
+      useEffect(() => {
+        cancelRef.current?.focus?.()
+      }, [])
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') onCancel()
+        }
+        document.addEventListener('keydown', onKeyDown)
+        return () => document.removeEventListener('keydown', onKeyDown)
+      }, [onCancel])
+      const canSave = remote !== '' && branch !== '' && branches.includes(branch) && phase === 'ready' && !busy
+      return h('div', {
+        className: 'dg-modal-backdrop',
+        onMouseDown: (event) => {
+          if (event.target === event.currentTarget) onCancel()
+        },
+      },
+      h('div', {
+        className: 'dg-modal',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': t('setUpstreamTitle'),
+      },
+      h('span', { className: 'dg-modal-title' }, t('setUpstreamTitle')),
+      h('span', { className: 'dg-modal-text' }, t('setUpstreamText', { branch: repo?.branch ?? '' })),
+      remotes.length === 0
+        ? h('span', { className: 'dg-modal-text' }, t('noRemotes'))
+        : h(React.Fragment, null,
+          h('label', { className: 'dg-field' },
+            h('span', { className: 'dg-field-label' }, t('remote')),
+            h('select', {
+              className: 'dg-input dg-select',
+              value: remote,
+              disabled: Boolean(busy),
+              onChange: (event) => onRemote(event.target.value),
+            },
+            remotes.map((entry) => h('option', { key: entry.name, value: entry.name },
+              entry.url ? `${entry.name} — ${entry.url}` : entry.name)))),
+          h('label', { className: 'dg-field' },
+            h('span', { className: 'dg-field-label' }, t('remoteBranch')),
+            h('select', {
+              className: 'dg-input dg-select',
+              value: branch,
+              disabled: Boolean(busy) || phase === 'loading' || branches.length === 0,
+              onChange: (event) => onBranch(event.target.value),
+            },
+            phase === 'loading'
+              ? h('option', { value: '' }, t('loadingBranches'))
+              : branches.length === 0
+                ? h('option', { value: '' }, t('noRemoteBranches'))
+                : branches.map((name) => h('option', { key: name, value: name }, name))))),
+      error !== null ? h('span', { className: 'dg-modal-error' }, error) : null,
+      h('div', { className: 'dg-modal-actions' },
+        h('button', {
+          type: 'button',
+          ref: cancelRef,
+          className: 'dg-btn',
+          onClick: onCancel,
+        }, t('cancel')),
+        h('button', {
+          type: 'button',
+          className: 'dg-btn dg-btn-primary',
+          onClick: onSave,
+          disabled: !canSave,
+        }, busy === t('savingUpstream') ? h(Spinner, { size: 12 }) : null, t('save')))))
+    }
+
     function RepoManager({
       t, workspaceTitle, workspacePath, discovered, enabled, scanPhase, scanError, scanTruncated,
       onToggle, onSelectAll, onClear, onRescan, onClose,
@@ -1356,6 +1454,12 @@ window.__ModuleLoader__.load({
       const [modelCatalog, setModelCatalog] = useState(null)
       const [modelSelection, setModelSelection] = useState(readModelSelection)
       const [modelError, setModelError] = useState(null)
+      const [upstreamOpen, setUpstreamOpen] = useState(false)
+      const [upstreamRemote, setUpstreamRemote] = useState('')
+      const [upstreamBranch, setUpstreamBranch] = useState('')
+      const [upstreamBranches, setUpstreamBranches] = useState([])
+      const [upstreamPhase, setUpstreamPhase] = useState('idle')
+      const [upstreamError, setUpstreamError] = useState(null)
 
       const busyRef = useRef(null)
       busyRef.current = busy
@@ -1456,6 +1560,34 @@ window.__ModuleLoader__.load({
         })
         return () => { alive = false }
       }, [call])
+
+      // 1c. Load the remote branches while the upstream dialog is open.
+      useEffect(() => {
+        if (!upstreamOpen || !activeRepoPath || upstreamRemote === '') return undefined
+        let alive = true
+        setUpstreamPhase('loading')
+        setUpstreamError(null)
+        call('remoteBranches', { cwd: activeRepoPath, remote: upstreamRemote }).then((value) => {
+          if (!alive) return
+          const list = Array.isArray(value?.branches)
+            ? value.branches.filter((name) => typeof name === 'string' && name !== '')
+            : []
+          setUpstreamBranches(list)
+          setUpstreamPhase('ready')
+          setUpstreamBranch((current) => {
+            if (current !== '' && list.includes(current)) return current
+            const currentBranch = snapshot?.repo?.branch
+            if (typeof currentBranch === 'string' && list.includes(currentBranch)) return currentBranch
+            return list[0] ?? ''
+          })
+        }).catch((failure) => {
+          if (!alive) return
+          setUpstreamBranches([])
+          setUpstreamPhase('error')
+          setUpstreamError(failure?.message ?? String(failure))
+        })
+        return () => { alive = false }
+      }, [activeRepoPath, call, snapshot?.repo?.branch, upstreamOpen, upstreamRemote])
 
       // 2a. Reset the page when the Workspace changes and restore its selection.
       useEffect(() => {
@@ -1666,6 +1798,47 @@ window.__ModuleLoader__.load({
         ? (activeEntry.relativePath === '.' ? t('rootRepository') : activeEntry.relativePath)
         : (repo?.name ?? baseName(activeRepoPath ?? ''))
       const repoRoot = repo?.root ?? activeRepoPath ?? workspacePath ?? ''
+
+      const openUpstream = useCallback(() => {
+        setMenu(null)
+        const remotes = Array.isArray(snapshot?.remotes) ? snapshot.remotes : []
+        const preferred = remotes.find((entry) => entry.name === 'origin') ?? remotes[0] ?? null
+        const currentUpstream = typeof repo?.upstream === 'string' ? repo.upstream : null
+        const separator = currentUpstream === null ? -1 : currentUpstream.indexOf('/')
+        const currentRemote = separator > 0 ? currentUpstream.slice(0, separator) : ''
+        const currentBranch = separator > 0 ? currentUpstream.slice(separator + 1) : ''
+        const knownRemote = remotes.some((entry) => entry.name === currentRemote)
+        setUpstreamRemote(knownRemote ? currentRemote : (preferred?.name ?? ''))
+        setUpstreamBranch(knownRemote ? currentBranch : '')
+        setUpstreamBranches([])
+        setUpstreamPhase('idle')
+        setUpstreamError(null)
+        setUpstreamOpen(true)
+      }, [repo, snapshot])
+
+      const saveUpstream = useCallback(async () => {
+        if (
+          !activeRepoPath
+          || repo === null
+          || repo.branch === null
+          || upstreamRemote === ''
+          || upstreamBranch === ''
+        ) return
+        const value = await run(
+          t('savingUpstream'),
+          () => call('setUpstream', {
+            cwd: activeRepoPath,
+            branch: repo.branch,
+            remote: upstreamRemote,
+            remoteBranch: upstreamBranch,
+          }),
+          (result) => t('upstreamSet', { upstream: result?.upstream ?? `${upstreamRemote}/${upstreamBranch}` }),
+        )
+        if (value !== undefined) {
+          setUpstreamOpen(false)
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, loadState, repo, run, t, upstreamBranch, upstreamRemote])
 
       const selectFile = useCallback((entry, group) => {
         setSelected({
@@ -2044,6 +2217,18 @@ window.__ModuleLoader__.load({
                       h('span', { className: 'dg-menu-item-title' }, branch.name),
                       h('span', { className: 'dg-menu-item-path' },
                         branch.upstream ?? t('noUpstream'))))),
+                  repo.branch !== null
+                    ? h('button', {
+                      type: 'button',
+                      className: 'dg-menu-item',
+                      onClick: openUpstream,
+                    },
+                    h('span', { className: 'dg-menu-check' }),
+                    h('span', { className: 'dg-menu-item-main' },
+                      h('span', { className: 'dg-menu-item-title' }, t('setUpstream')),
+                      h('span', { className: 'dg-menu-item-path' },
+                        repo.upstream ?? t('noUpstream'))))
+                    : null,
                   h('div', { className: 'dg-menu-sep' }),
                   h('div', { className: 'dg-menu-label' }, t('newBranch')),
                   h('div', { className: 'dg-menu-input-row' },
@@ -2292,6 +2477,26 @@ window.__ModuleLoader__.load({
             onCancel: () => setDiscardTargets(null),
             onConfirm: () => void confirmDiscard(),
             busy,
+          })
+          : null,
+        upstreamOpen
+          ? h(UpstreamDialog, {
+            t,
+            repo,
+            remotes: Array.isArray(snapshot?.remotes) ? snapshot.remotes : [],
+            remote: upstreamRemote,
+            branch: upstreamBranch,
+            branches: upstreamBranches,
+            phase: upstreamPhase,
+            error: upstreamError,
+            busy,
+            onRemote: (value) => {
+              setUpstreamRemote(value)
+              setUpstreamBranch('')
+            },
+            onBranch: setUpstreamBranch,
+            onCancel: () => setUpstreamOpen(false),
+            onSave: () => void saveUpstream(),
           })
           : null,
         managerOpen

@@ -31,6 +31,8 @@ import {
   fetchRemote,
   pull,
   push,
+  readRemoteBranches,
+  setUpstream,
   init,
 } from '../index.js'
 
@@ -718,6 +720,55 @@ async function main() {
       state = await readState(git, remoteRepo)
       assert.equal(state.repo.behind, 0)
       assert.ok(await fs.stat(path.join(remoteRepo, 'pulled.txt')))
+    })
+
+    await checkAsync('upstream lists remotes and remote branches', async () => {
+      run(clone, ['switch', '-c', 'side'])
+      const state = await readState(git, clone)
+      assert.ok(state.remotes.some((entry) => entry.name === 'origin' && entry.url === bare))
+      assert.equal(state.repo.upstream, null)
+      const value = await readRemoteBranches(git, clone, { remote: 'origin' })
+      assert.deepEqual(value, { remote: 'origin', branches: ['main'] })
+    })
+
+    await checkAsync('setUpstream points a local branch at origin/main', async () => {
+      const value = await setUpstream(git, clone, { branch: 'side', remote: 'origin', remoteBranch: 'main' })
+      assert.deepEqual(value, { branch: 'side', upstream: 'origin/main' })
+      const state = await readState(git, clone)
+      const side = state.branches.find((branch) => branch.name === 'side')
+      assert.equal(side.upstream, 'origin/main')
+    })
+
+    await checkAsync('setUpstream rejects unknown remotes and branches', async () => {
+      await assert.rejects(
+        () => readRemoteBranches(git, clone, { remote: 'nope' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/remote-not-found',
+      )
+      await assert.rejects(
+        () => setUpstream(git, clone, { branch: 'side', remote: 'origin', remoteBranch: 'missing' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/upstream-failed',
+      )
+    })
+
+    await checkAsync('service exposes the upstream endpoints', async () => {
+      const service = createGitService()
+      const ctx = {
+        get(name) {
+          if (name === 'workspaceRegistry') {
+            return { list: () => [{ id: 'clone', title: 'clone', path: clone }] }
+          }
+          return undefined
+        },
+      }
+      const branches = await service.remoteBranches(ctx, { cwd: clone, remote: 'origin' })
+      assert.deepEqual(branches, { remote: 'origin', branches: ['main'] })
+      const value = await service.setUpstream(ctx, {
+        cwd: clone,
+        branch: 'side',
+        remote: 'origin',
+        remoteBranch: 'main',
+      })
+      assert.deepEqual(value, { branch: 'side', upstream: 'origin/main' })
     })
   } finally {
     await fs.rm(remoteRepo, { recursive: true, force: true })

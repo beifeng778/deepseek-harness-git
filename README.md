@@ -31,7 +31,8 @@ The plugin is a bundle with two halves:
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
 | History | The 40 most recent commits; selecting one shows its metadata and patch. |
-| Branches | Local branch menu with upstream, current marker, switch, and create. |
+| Branches | Local branch menu with upstream, current marker, switch, create, and **Set upstream**. |
+| Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
 | Sync | Fetch, pull, and push, with ahead/behind counts and a bounded 120-second network timeout. |
 | Empty states | No Workspaces, no repositories found (with **Scan again** and **Initialize repository**), no repositories loaded, clean tree, no staged changes, no commits. |
 | Localization | English and Chinese dictionaries, registered in the host locale namespace `dsh-git`. |
@@ -98,7 +99,8 @@ both fields together:
    asks the selected model for a message based on the staged changes (or the
    working-tree changes when nothing is staged). The **AI model** row defaults to
    the new-session model; choose another model to pin it for this browser.
-5. Switch branches from the branch chip; sync from the toolbar.
+5. Switch branches from the branch chip; **Set upstream** in that menu points the
+   current branch at a fetched remote branch. Sync from the toolbar.
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and
@@ -121,7 +123,7 @@ The host answers `{ ok: true, value }` or
 | `scan` | `{ cwd }` | `{ workspace, repos: [{ path, relativePath, name }], truncated }` |
 | `models` | — | provider/model catalog plus the new-session default |
 | `message` | `{ cwd, locale, provider?, model? }` | AI-generated commit message, model route, and file count |
-| `state` | `{ cwd }` | repository head, staged/unstaged entries, branches, commits |
+| `state` | `{ cwd }` | repository head, staged/unstaged entries, branches, remotes, commits |
 | `diff` | `{ cwd, path, group, originalPath? }` | one parsed patch |
 | `show` | `{ cwd, hash }` | commit metadata and parsed patch |
 | `stage` | `{ cwd, paths }` or `{ cwd, all: true }` | `git add` |
@@ -130,6 +132,8 @@ The host answers `{ ok: true, value }` or
 | `commit` | `{ cwd, message, amend?, stageAll? }` | new short hash and output |
 | `checkout` | `{ cwd, branch }` | `git switch` |
 | `createBranch` | `{ cwd, branch }` | `git switch -c` |
+| `remoteBranches` | `{ cwd, remote }` | fetched branches of one remote |
+| `setUpstream` | `{ cwd, branch, remote, remoteBranch }` | `git branch --set-upstream-to` |
 | `fetch` / `pull` / `push` | `{ cwd }` | network verbs |
 | `init` | `{ cwd }` | `git init -b main` |
 
@@ -143,7 +147,7 @@ The host answers `{ ok: true, value }` or
   skips symlinks, hidden directories, and build/dependency directories
   (`node_modules`, `dist`, `build`, `target`, …), and reports truncation.
 - **No shell.** Commands use `execFile` with an argv array. User paths travel
-  after `--`, and branch names are validated before they reach argv.
+  after `--`, and branch and remote names are validated before they reach argv.
 - **AI data egress.** AI message generation sends the changed-file list and a
   bounded diff (24,000 characters) to the selected model (default: the profile's
   new-session model) through `ctx.llm`; it never calls an external service
