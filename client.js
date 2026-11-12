@@ -83,6 +83,10 @@ window.__ModuleLoader__.load({
       aheadCount: '{n} ahead',
       behindCount: '{n} behind',
       noUpstream: 'No upstream',
+      publishBranch: 'Publish branch',
+      publishBranchHint: 'Push this branch and set its upstream',
+      publishingBranch: 'Publishing branch…',
+      branchPublished: 'Published {branch} and set its upstream.',
       setUpstream: 'Set upstream…',
       setUpstreamTitle: 'Set upstream',
       setUpstreamText: 'Choose the remote branch that {branch} should track.',
@@ -238,6 +242,10 @@ window.__ModuleLoader__.load({
       aheadCount: '领先 {n} 个提交',
       behindCount: '落后 {n} 个提交',
       noUpstream: '无上游分支',
+      publishBranch: '发布分支',
+      publishBranchHint: '推送此分支并设置上游',
+      publishingBranch: '正在发布分支…',
+      branchPublished: '已发布 {branch} 并设置上游。',
       setUpstream: '设置上游…',
       setUpstreamTitle: '设置上游',
       setUpstreamText: '选择 {branch} 要跟踪的远程分支。',
@@ -1909,6 +1917,18 @@ window.__ModuleLoader__.load({
         setDeleteTarget(branch)
       }, [])
 
+      const publishBranch = useCallback(async () => {
+        if (!activeRepoPath || repo === null || repo.branch === null) return
+        const value = await run(
+          t('publishingBranch'),
+          () => call('push', { cwd: activeRepoPath }),
+          t('branchPublished', { branch: repo.branch }),
+        )
+        if (value !== undefined) {
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, loadState, repo, run, t])
+
       const confirmDeleteBranch = useCallback(async () => {
         const branch = deleteTarget
         if (branch === null) return
@@ -2312,6 +2332,17 @@ window.__ModuleLoader__.load({
                         'aria-label': t('deleteBranch'),
                         onClick: () => askDeleteBranch(branch.name),
                       }, h(TrashIcon, { size: 12 })))),
+                  repo.branch !== null && repo.upstream === null
+                    ? h('button', {
+                      type: 'button',
+                      className: 'dg-menu-item',
+                      onClick: () => void publishBranch(),
+                    },
+                    h('span', { className: 'dg-menu-check' }),
+                    h('span', { className: 'dg-menu-item-main' },
+                      h('span', { className: 'dg-menu-item-title' }, t('publishBranch')),
+                      h('span', { className: 'dg-menu-item-path' }, t('publishBranchHint'))))
+                    : null,
                   repo.branch !== null
                     ? h('button', {
                       type: 'button',
