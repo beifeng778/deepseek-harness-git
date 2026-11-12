@@ -1,8 +1,8 @@
-# dsh-git
+# deepseek-harness-git
 
-[![CI](https://github.com/dushaobindoudou/dsh-git/actions/workflows/ci.yml/badge.svg)](https://github.com/dushaobindoudou/dsh-git/actions/workflows/ci.yml)
-[![npm](https://img.shields.io/npm/v/dsh-git.svg)](https://www.npmjs.com/package/dsh-git)
-[![license](https://img.shields.io/npm/l/dsh-git.svg)](LICENSE)
+[![CI](https://github.com/beifeng778/deepseek-harness-git/actions/workflows/ci.yml/badge.svg)](https://github.com/beifeng778/deepseek-harness-git/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/deepseek-harness-git.svg)](https://www.npmjs.com/package/deepseek-harness-git)
+[![license](https://img.shields.io/npm/l/deepseek-harness-git.svg)](LICENSE)
 
 A Git source-control page for the DeepSeek Harness Web GUI, modelled on the
 source-control panel people know from VS Code: repository discovery, staged and
@@ -40,7 +40,7 @@ From the Harness profile that should own the panel, either install the published
 package:
 
 ```
-plugin_manager install_bundle  target: dsh-git@1.0.0
+plugin_manager install_bundle  target: deepseek-harness-git@1.0.0
 ```
 
 or install this checkout by absolute path:
@@ -53,8 +53,8 @@ The bundle's `cordis.patch.yml` inserts one row:
 
 ```yaml
 - insert:
-    - id: dsh-git
-      name: dsh-git
+    - id: deepseek-harness-git
+      name: deepseek-harness-git
       config: {}
 ```
 
@@ -63,8 +63,8 @@ The bundle's `cordis.patch.yml` inserts one row:
 
 ```yaml
 - insert:
-    - id: dsh-git
-      name: dsh-git
+    - id: deepseek-harness-git
+      name: deepseek-harness-git
       config:
         gitPath: 'C:\Program Files\Git\cmd\git.exe'
 ```
@@ -74,8 +74,8 @@ specific model instead, set both fields (they must be supplied together):
 
 ```yaml
 - insert:
-    - id: dsh-git
-      name: dsh-git
+    - id: deepseek-harness-git
+      name: deepseek-harness-git
       config:
         messageProvider: magpie
         messageModel: devin/deepseek-v4-1-flash-1017
@@ -167,11 +167,9 @@ original and uses the Harness slot, locale, and Connection APIs.
 
 ## Publishing
 
-The npm name `dsh-git` is already reserved at `0.0.1` by `dushaobindoudou`, so
-publishing this release requires access to that package (or a new name/scope in
-`package.json` and `cordis.patch.yml`). `publishConfig.registry` points at the
-canonical registry, so a plain publish works even when the local install
-registry is a mirror:
+The npm name `deepseek-harness-git` is available and matches the GitHub
+repository name. `publishConfig.registry` points at the canonical registry, so a
+plain publish works even when the local install registry is a mirror:
 
 ```
 npm publish
@@ -180,10 +178,10 @@ npm publish
 `prepublishOnly` runs `npm run check && npm test` before the upload, and
 `npm pack --dry-run` lists exactly the published files.
 
-For the GitHub repository:
+Create the empty GitHub repository, then push:
 
 ```
-git remote add origin https://github.com/dushaobindoudou/dsh-git.git
+git remote add origin git@github.com:beifeng778/deepseek-harness-git.git
 git push -u origin main
 ```
 

@@ -59,7 +59,7 @@ const moduleUrl = pathToFileURL(path.resolve('client.js')).href
 await import(moduleUrl)
 
 assert.ok(captured !== null, 'the module loader was not called')
-assert.equal(captured.id, 'dsh-git', 'the loader id must match the package name')
+assert.equal(captured.id, 'deepseek-harness-git', 'the loader id must match the package name')
 
 const plugin = captured.factory((name) => {
   if (name === 'react') return React

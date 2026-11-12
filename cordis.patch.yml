@@ -1,4 +1,4 @@
 - insert:
-    - id: dsh-git
-      name: dsh-git
+    - id: deepseek-harness-git
+      name: deepseek-harness-git
       config: {}

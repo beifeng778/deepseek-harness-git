@@ -2,7 +2,7 @@
 
 ## 1.0.0
 
-- Initial release of the Git source-control page for the DeepSeek Harness Web GUI.
+- Initial release of `deepseek-harness-git`, the Git source-control page for the DeepSeek Harness Web GUI.
 - Workspace-scoped repository discovery with per-workspace selection of the repositories to load.
 - Merge, staged, and working-tree groups with per-file stage, unstage, and discard.
 - Unified diffs with old/new line numbers, hunk headers, binary and truncated notices, rename support, and conflict combined diffs.

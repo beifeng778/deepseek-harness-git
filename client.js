@@ -12,7 +12,7 @@
  */
 
 window.__ModuleLoader__.load({
-  id: 'dsh-git',
+  id: 'deepseek-harness-git',
   factory(require) {
     const React = require('react')
     const h = React.createElement

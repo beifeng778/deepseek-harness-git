@@ -1,5 +1,5 @@
 {
-  "name": "dsh-git",
+  "name": "deepseek-harness-git",
   "version": "1.0.0",
   "type": "module",
   "description": "Git source-control panel for the DeepSeek Harness Web GUI: repository discovery, changes, staging, diffs, AI commit messages, branches, and sync.",
@@ -37,15 +37,15 @@
     "commit",
     "diff"
   ],
-  "author": "dushaobindoudou",
+  "author": "beifeng778",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/dushaobindoudou/dsh-git.git"
+    "url": "git+https://github.com/beifeng778/deepseek-harness-git.git"
   },
-  "homepage": "https://github.com/dushaobindoudou/dsh-git#readme",
+  "homepage": "https://github.com/beifeng778/deepseek-harness-git#readme",
   "bugs": {
-    "url": "https://github.com/dushaobindoudou/dsh-git/issues"
+    "url": "https://github.com/beifeng778/deepseek-harness-git/issues"
   },
   "engines": {
     "node": ">=20",
