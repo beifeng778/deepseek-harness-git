@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "Git",
+    "description": "Discover repositories inside a workspace, choose which ones to load, review changes, stage files, read diffs, generate commit messages with AI, commit, switch branches, and sync."
+  }
+}

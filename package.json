@@ -1,0 +1,75 @@
+{
+  "name": "dsh-git",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Git source-control panel for the DeepSeek Harness Web GUI: repository discovery, changes, staging, diffs, AI commit messages, branches, and sync.",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "locale/*.json",
+    "icon.svg",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "check": "node --check index.js && node --check client.js",
+    "test": "node test/host.test.mjs && node test/client-module.test.mjs",
+    "prepublishOnly": "npm run check && npm test"
+  },
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "deepseek-harness",
+    "cordis-plugin",
+    "git",
+    "source-control",
+    "scm",
+    "commit",
+    "diff"
+  ],
+  "author": "dushaobindoudou",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dushaobindoudou/dsh-git.git"
+  },
+  "homepage": "https://github.com/dushaobindoudou/dsh-git#readme",
+  "bugs": {
+    "url": "https://github.com/dushaobindoudou/dsh-git/issues"
+  },
+  "engines": {
+    "node": ">=20",
+    "dsh": ">=0.2.0 <0.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-locale",
+        "@deepseek-ai/dsh-client-connection",
+        "@deepseek-ai/dsh-client-ui-sidebar"
+      ]
+    },
+    "compatibility": {
+      "dsh": ">=0.2.0 <0.3.0"
+    }
+  }
+}
