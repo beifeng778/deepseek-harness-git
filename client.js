@@ -93,12 +93,27 @@ window.__ModuleLoader__.load({
       pushToRemoteHint: 'Create or update a remote branch from {branch}',
       branchPushedTo: 'Pushed {branch} to {upstream}.',
       setUpstream: 'Set upstream…',
+      manageRemotes: 'Manage remotes…',
+      remotesTitle: 'Remote repositories',
+      remotesText: 'Add a remote repository, fetch it, then set a branch upstream.',
+      remoteName: 'Name',
+      remoteUrl: 'URL',
+      remoteUrlPlaceholder: 'git@github.com:you/repo.git',
+      addRemote: 'Add remote',
+      addingRemote: 'Adding remote…',
+      remoteAdded: 'Added remote {name}.',
+      removeRemote: 'Remove remote',
+      removingRemote: 'Removing remote…',
+      remoteRemoved: 'Removed remote {name}.',
+      noRemotesConfigured: 'No remotes yet. Add one below.',
+      remoteInUseWarning: 'Removing a remote also clears the upstream of branches that tracked it.',
+      close: 'Close',
       setUpstreamTitle: 'Set upstream',
       setUpstreamText: 'Choose the remote branch that {branch} should track.',
       upstreamPushHint: 'The branch {branch} has no remote counterpart yet; push it first to create one.',
       remote: 'Remote',
       remoteBranch: 'Remote branch',
-      noRemotes: 'No remotes are configured for this repository.',
+      noRemotes: 'No remotes are configured. Use Manage remotes to add one.',
       noRemoteBranches: 'No remote branches; fetch the remote first.',
       loadingBranches: 'Loading branches…',
       savingUpstream: 'Setting upstream…',
@@ -257,12 +272,27 @@ window.__ModuleLoader__.load({
       pushToRemoteHint: '从 {branch} 创建或更新远程分支',
       branchPushedTo: '已将 {branch} 推送到 {upstream}。',
       setUpstream: '设置上游…',
+      manageRemotes: '管理远程仓库…',
+      remotesTitle: '远程仓库',
+      remotesText: '添加远程仓库，抓取后即可设置分支上游。',
+      remoteName: '名称',
+      remoteUrl: 'URL',
+      remoteUrlPlaceholder: 'git@github.com:you/repo.git',
+      addRemote: '添加远程仓库',
+      addingRemote: '正在添加远程仓库…',
+      remoteAdded: '已添加远程仓库 {name}。',
+      removeRemote: '移除远程仓库',
+      removingRemote: '正在移除远程仓库…',
+      remoteRemoved: '已移除远程仓库 {name}。',
+      noRemotesConfigured: '还没有远程仓库，在下面添加。',
+      remoteInUseWarning: '移除远程仓库会同时清除跟踪它的分支的上游。',
+      close: '关闭',
       setUpstreamTitle: '设置上游',
       setUpstreamText: '选择 {branch} 要跟踪的远程分支。',
       upstreamPushHint: '分支 {branch} 还没有远程对应分支，先推送一次即可创建。',
       remote: '远程仓库',
       remoteBranch: '远程分支',
-      noRemotes: '这个仓库没有配置远程仓库。',
+      noRemotes: '没有配置远程仓库。请用“管理远程仓库”添加。',
       noRemoteBranches: '没有远程分支，请先抓取远程。',
       loadingBranches: '正在加载分支…',
       savingUpstream: '正在设置上游…',
@@ -524,6 +554,11 @@ window.__ModuleLoader__.load({
       .dg-field{display:flex;flex-direction:column;gap:4px}
       .dg-field-label{font-size:11px;color:var(--dsw-alias-label-secondary)}
       .dg-select{flex:none;height:28px;padding:0 6px}
+      .dg-remote-list{display:flex;flex-direction:column;gap:4px;max-height:180px;overflow:auto}
+      .dg-remote-row{display:flex;align-items:center;gap:6px}
+      .dg-remote-info{display:flex;flex-direction:column;gap:1px;min-width:0;flex:1}
+      .dg-remote-name{font-size:12px;font-weight:600}
+      .dg-remote-url{font-size:10.5px;color:var(--dsw-alias-label-secondary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .dg-modal-error{font-size:11.5px;line-height:1.5;color:var(--dsw-alias-state-error-primary);word-break:break-word}
       .dg-modal-wide{width:min(600px,100%)}
       .dg-manager-meta{display:flex;align-items:center;gap:8px;color:var(--dsw-alias-label-secondary);font-size:11.5px;min-height:18px}
@@ -1502,6 +1537,92 @@ window.__ModuleLoader__.load({
         }, busy === t('publishingBranch') ? h(Spinner, { size: 12 }) : null, t('push')))))
     }
 
+    function RemoteManagerDialog({
+      t, remotes, name, url, onName, onUrl, onAdd, onRemove, onFetch, onClose, busy,
+    }) {
+      const closeRef = useRef(null)
+      useEffect(() => {
+        closeRef.current?.focus?.()
+      }, [])
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') onClose()
+        }
+        document.addEventListener('keydown', onKeyDown)
+        return () => document.removeEventListener('keydown', onKeyDown)
+      }, [onClose])
+      const canAdd = name.trim() !== '' && url.trim() !== '' && !busy
+      return h('div', {
+        className: 'dg-modal-backdrop',
+        onMouseDown: (event) => {
+          if (event.target === event.currentTarget) onClose()
+        },
+      },
+      h('div', {
+        className: 'dg-modal',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': t('remotesTitle'),
+      },
+      h('span', { className: 'dg-modal-title' }, t('remotesTitle')),
+      h('span', { className: 'dg-modal-text' }, t('remotesText')),
+      remotes.length === 0
+        ? h('span', { className: 'dg-modal-text' }, t('noRemotesConfigured'))
+        : h('div', { className: 'dg-remote-list' },
+          remotes.map((remote) => h('div', { className: 'dg-remote-row', key: remote.name },
+            h('div', { className: 'dg-remote-info' },
+              h('span', { className: 'dg-remote-name' }, remote.name),
+              h('span', { className: 'dg-remote-url', title: remote.url }, remote.url)),
+            h('button', {
+              type: 'button',
+              className: 'dg-branch-delete',
+              title: t('removeRemote'),
+              'aria-label': t('removeRemote'),
+              disabled: Boolean(busy),
+              onClick: () => onRemove(remote.name),
+            }, h(TrashIcon, { size: 12 }))))),
+      h('span', { className: 'dg-modal-text' }, t('remoteInUseWarning')),
+      h('label', { className: 'dg-field' },
+        h('span', { className: 'dg-field-label' }, t('remoteName')),
+        h('input', {
+          className: 'dg-input dg-select',
+          value: name,
+          placeholder: 'origin',
+          'aria-label': t('remoteName'),
+          disabled: Boolean(busy),
+          onChange: (event) => onName(event.target.value),
+        })),
+      h('label', { className: 'dg-field' },
+        h('span', { className: 'dg-field-label' }, t('remoteUrl')),
+        h('input', {
+          className: 'dg-input dg-select',
+          value: url,
+          placeholder: t('remoteUrlPlaceholder'),
+          'aria-label': t('remoteUrl'),
+          disabled: Boolean(busy),
+          onChange: (event) => onUrl(event.target.value),
+        })),
+      h('div', { className: 'dg-modal-actions' },
+        h('button', {
+          type: 'button',
+          className: 'dg-btn',
+          onClick: onFetch,
+          disabled: Boolean(busy),
+        }, t('fetch')),
+        h('button', {
+          type: 'button',
+          className: 'dg-btn dg-btn-primary',
+          onClick: onAdd,
+          disabled: !canAdd,
+        }, busy === t('addingRemote') ? h(Spinner, { size: 12 }) : null, t('addRemote')),
+        h('button', {
+          type: 'button',
+          ref: closeRef,
+          className: 'dg-btn',
+          onClick: onClose,
+        }, t('close')))))
+    }
+
     function RepoManager({
       t, workspaceTitle, workspacePath, discovered, enabled, scanPhase, scanError, scanTruncated,
       onToggle, onSelectAll, onClear, onRescan, onClose,
@@ -1612,6 +1733,9 @@ window.__ModuleLoader__.load({
       const [pushRemoteOpen, setPushRemoteOpen] = useState(false)
       const [pushRemote, setPushRemote] = useState('')
       const [pushRemoteBranch, setPushRemoteBranch] = useState('')
+      const [remoteManagerOpen, setRemoteManagerOpen] = useState(false)
+      const [remoteName, setRemoteName] = useState('origin')
+      const [remoteUrl, setRemoteUrl] = useState('')
 
       const busyRef = useRef(null)
       busyRef.current = busy
@@ -2005,7 +2129,6 @@ window.__ModuleLoader__.load({
         setPushRemoteBranch(repo?.branch ?? '')
         setPushRemoteOpen(true)
       }, [repo, snapshot])
-
       const savePushRemote = useCallback(async () => {
         if (
           !activeRepoPath
@@ -2033,6 +2156,40 @@ window.__ModuleLoader__.load({
           await loadState({ quiet: true })
         }
       }, [activeRepoPath, call, loadState, pushRemote, pushRemoteBranch, repo, run, t])
+
+      const openRemoteManager = useCallback(() => {
+        setMenu(null)
+        setRemoteName('origin')
+        setRemoteUrl('')
+        setRemoteManagerOpen(true)
+      }, [])
+
+      const addRemote = useCallback(async () => {
+        if (!activeRepoPath || remoteName.trim() === '' || remoteUrl.trim() === '') return
+        const name = remoteName.trim()
+        const value = await run(
+          t('addingRemote'),
+          () => call('addRemote', { cwd: activeRepoPath, name, url: remoteUrl.trim() }),
+          t('remoteAdded', { name }),
+        )
+        if (value !== undefined) {
+          setRemoteName('origin')
+          setRemoteUrl('')
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, loadState, remoteName, remoteUrl, run, t])
+
+      const removeRemote = useCallback(async (name) => {
+        if (!activeRepoPath) return
+        const value = await run(
+          t('removingRemote'),
+          () => call('removeRemote', { cwd: activeRepoPath, name }),
+          t('remoteRemoved', { name }),
+        )
+        if (value !== undefined) {
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, loadState, run, t])
 
       const publishBranch = useCallback(async () => {
         if (!activeRepoPath || repo === null || repo.branch === null) return
@@ -2484,6 +2641,14 @@ window.__ModuleLoader__.load({
                       h('span', { className: 'dg-menu-item-path' },
                         t('pushToRemoteHint', { branch: repo.branch }))))
                     : null,
+                  h('button', {
+                    type: 'button',
+                    className: 'dg-menu-item',
+                    onClick: openRemoteManager,
+                  },
+                  h('span', { className: 'dg-menu-check' }),
+                  h('span', { className: 'dg-menu-item-main' },
+                    h('span', { className: 'dg-menu-item-title' }, t('manageRemotes')))),
                   h('div', { className: 'dg-menu-sep' }),
                   h('div', { className: 'dg-menu-label' }, t('newBranch')),
                   h('div', { className: 'dg-menu-input-row' },
@@ -2774,6 +2939,21 @@ window.__ModuleLoader__.load({
             onBranch: setPushRemoteBranch,
             onCancel: () => setPushRemoteOpen(false),
             onSave: () => void savePushRemote(),
+            busy,
+          })
+          : null,
+        remoteManagerOpen
+          ? h(RemoteManagerDialog, {
+            t,
+            remotes: Array.isArray(snapshot?.remotes) ? snapshot.remotes : [],
+            name: remoteName,
+            url: remoteUrl,
+            onName: setRemoteName,
+            onUrl: setRemoteUrl,
+            onAdd: () => void addRemote(),
+            onRemove: (name) => void removeRemote(name),
+            onFetch: () => void sync('fetch', t('fetch'), t('fetchDone')),
+            onClose: () => setRemoteManagerOpen(false),
             busy,
           })
           : null,

@@ -33,6 +33,7 @@ The plugin is a bundle with two halves:
 | History | The 40 most recent commits; selecting one shows its metadata and patch. |
 | Branches | Local branch menu with upstream, current marker, switch, create, delete, **Publish branch**, **Push to remote branch**, and **Set upstream**. |
 | Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
+| Remotes | **Manage remotes** adds or removes remote repositories, lists their URLs, and fetches all remotes. |
 | Sync | Fetch, pull, and push, with ahead/behind counts and a bounded 120-second network timeout. |
 | Empty states | No Workspaces, no repositories found (with **Scan again** and **Initialize repository**), no repositories loaded, clean tree, no staged changes, no commits. |
 | Localization | English and Chinese dictionaries, registered in the host locale namespace `dsh-git`. |
@@ -102,8 +103,9 @@ both fields together:
 5. Switch branches from the branch chip. A branch without an upstream offers
    **Publish branch** (push it and set the upstream) and **Set upstream** (track
    an already-fetched remote branch). **Push to remote branch** pushes the
-   current branch to a remote branch with any name, creating it when new. Sync
-   from the toolbar.
+   current branch to a remote branch with any name, creating it when new. For a
+   local repository with no remote, open **Manage remotes** first, add the
+   remote, fetch it, then set the upstream. Sync from the toolbar.
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and
@@ -139,6 +141,8 @@ The host answers `{ ok: true, value }` or
 | `remoteBranches` | `{ cwd, remote }` | fetched branches of one remote |
 | `setUpstream` | `{ cwd, branch, remote, remoteBranch }` | `git branch --set-upstream-to` |
 | `pushBranch` | `{ cwd, localBranch, remote, remoteBranch }` | `git push --set-upstream <remote> <local>:refs/heads/<remote>` |
+| `addRemote` | `{ cwd, name, url }` | `git remote add` |
+| `removeRemote` | `{ cwd, name }` | `git remote remove` |
 | `fetch` / `pull` / `push` | `{ cwd }` | network verbs |
 | `init` | `{ cwd }` | `git init -b main` |
 
@@ -152,7 +156,8 @@ The host answers `{ ok: true, value }` or
   skips symlinks, hidden directories, and build/dependency directories
   (`node_modules`, `dist`, `build`, `target`, …), and reports truncation.
 - **No shell.** Commands use `execFile` with an argv array. User paths travel
-  after `--`, and branch and remote names are validated before they reach argv.
+  after `--`, and branch, remote, and remote URL values are validated before
+  they reach argv.
 - **AI data egress.** AI message generation sends the changed-file list and a
   bounded diff (24,000 characters) to the selected model (default: the profile's
   new-session model) through `ctx.llm`; it never calls an external service
@@ -236,6 +241,8 @@ the Actions tab (`workflow_dispatch`).
   There is no force-delete control; use the CLI for `-D`.
 - **Set upstream** lists fetched remote branches; a brand-new local branch has no
   remote counterpart until **Publish branch** (or Push) creates it.
+- **Manage remotes** can add and remove repositories, but does not edit an
+  existing URL. Removing a remote clears the upstream of branches that tracked it.
 - No line-level (hunk) staging or inline diff editing.
 - AI message generation depends on the profile's default model; the prompt diff
   is truncated at 24,000 characters, and the message appears only after the

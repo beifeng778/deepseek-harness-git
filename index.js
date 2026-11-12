@@ -121,6 +121,23 @@ function normalizeRemote(input) {
   return name
 }
 
+/** Validate one remote URL before it reaches argv. */
+function normalizeRemoteUrl(input) {
+  if (typeof input !== 'string') {
+    throw new GitPanelError('git/bad-remote-url', 'A remote URL is required.')
+  }
+  const url = input.trim()
+  if (
+    url === ''
+    || url.length > 2048
+    || url.startsWith('-')
+    || /[\x00-\x1f\x7f]/.test(url)
+  ) {
+    throw new GitPanelError('git/bad-remote-url', 'That is not a valid remote URL.')
+  }
+  return url
+}
+
 /** Validate one local branch name before it reaches argv. */
 function normalizeBranch(input) {
   if (typeof input !== 'string') {
@@ -376,6 +393,37 @@ async function listRemotes(gitPath, root) {
     if (!seen.has(name)) seen.set(name, { name, url })
   }
   return [...seen.values()]
+}
+
+export async function addRemote(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const name = normalizeRemote(payload.name)
+  const url = normalizeRemoteUrl(payload.url)
+  const remotes = await listRemotes(gitPath, root)
+  if (remotes.some((entry) => entry.name === name)) {
+    throw new GitPanelError('git/remote-exists', `Remote ${JSON.stringify(name)} already exists.`)
+  }
+  try {
+    await mustGit(gitPath, root, ['remote', 'add', '--', name, url])
+  } catch (error) {
+    throw new GitPanelError('git/remote-add-failed', clean(error?.message ?? error) || 'Could not add the remote.')
+  }
+  return { remote: { name, url } }
+}
+
+export async function removeRemote(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const name = normalizeRemote(payload.name)
+  const remotes = await listRemotes(gitPath, root)
+  if (!remotes.some((entry) => entry.name === name)) {
+    throw new GitPanelError('git/remote-not-found', `Unknown remote ${JSON.stringify(name)}.`)
+  }
+  try {
+    await mustGit(gitPath, root, ['remote', 'remove', name])
+  } catch (error) {
+    throw new GitPanelError('git/remote-remove-failed', clean(error?.message ?? error) || 'Could not remove the remote.')
+  }
+  return { name }
 }
 
 /** Read branches, newest commit first; an unborn HEAD yields an empty list. */
@@ -1425,6 +1473,12 @@ export function createGitService(options = {}) {
     async setUpstream(ctx, payload) {
       return setUpstream(gitPath, await admitPath(ctx, payload.cwd), payload)
     },
+    async addRemote(ctx, payload) {
+      return addRemote(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
+    async removeRemote(ctx, payload) {
+      return removeRemote(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
     async fetch(ctx, payload) {
       return fetchRemote(gitPath, await admitPath(ctx, payload.cwd))
     },
@@ -1446,6 +1500,7 @@ export function createGitService(options = {}) {
 const ACTIONS = new Set([
   'repos', 'scan', 'models', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
   'commit', 'checkout', 'createBranch', 'deleteBranch', 'remoteBranches', 'setUpstream',
+  'addRemote', 'removeRemote',
   'fetch', 'pull', 'push', 'pushBranch', 'init',
 ])
 

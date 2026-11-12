@@ -33,6 +33,8 @@ import {
   pull,
   push,
   pushBranch,
+  addRemote,
+  removeRemote,
   readRemoteBranches,
   setUpstream,
   init,
@@ -817,6 +819,34 @@ async function main() {
       assert.ok(remoteBranches.branches.includes('feature/published'))
       await assert.rejects(
         () => pushBranch(git, clone, { localBranch: 'publish-me', remote: 'nope', remoteBranch: 'x' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/remote-not-found',
+      )
+    })
+
+    await checkAsync('addRemote and removeRemote manage repositories', async () => {
+      const added = await addRemote(git, clone, {
+        name: 'upstream',
+        url: 'https://example.com/up.git',
+      })
+      assert.deepEqual(added, { remote: { name: 'upstream', url: 'https://example.com/up.git' } })
+      let state = await readState(git, clone)
+      assert.ok(state.remotes.some((entry) => (
+        entry.name === 'upstream' && entry.url === 'https://example.com/up.git'
+      )))
+      await assert.rejects(
+        () => addRemote(git, clone, { name: 'upstream', url: 'https://example.com/other.git' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/remote-exists',
+      )
+      await assert.rejects(
+        () => addRemote(git, clone, { name: 'bad', url: '--upload-pack=evil' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/bad-remote-url',
+      )
+      const removed = await removeRemote(git, clone, { name: 'upstream' })
+      assert.deepEqual(removed, { name: 'upstream' })
+      state = await readState(git, clone)
+      assert.ok(!state.remotes.some((entry) => entry.name === 'upstream'))
+      await assert.rejects(
+        () => removeRemote(git, clone, { name: 'upstream' }),
         (error) => error instanceof GitPanelError && error.code === 'git/remote-not-found',
       )
     })
