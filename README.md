@@ -31,7 +31,7 @@ The plugin is a bundle with two halves:
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
 | History | The 40 most recent commits; selecting one shows its metadata and patch. |
-| Branches | Local branch menu with upstream, current marker, switch, create, delete, **Publish branch**, **Push to remote branch**, and **Set upstream**. |
+| Branches | Local branch menu with upstream, current marker, switch, create, delete, **Publish branch**, and **Set upstream**. |
 | Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
 | Remotes | **Manage remotes** adds or removes remote repositories, lists their URLs, and fetches all remotes. |
 | Sync | Fetch, pull, and push, with ahead/behind counts and a bounded 120-second network timeout. |
@@ -102,10 +102,9 @@ both fields together:
    the new-session model; choose another model to pin it for this browser.
 5. Switch branches from the branch chip. A branch without an upstream offers
    **Publish branch** (push it and set the upstream) and **Set upstream** (track
-   an already-fetched remote branch). **Push to remote branch** pushes the
-   current branch to a remote branch with any name, creating it when new. For a
-   local repository with no remote, open **Manage remotes** first, add the
-   remote, fetch it, then set the upstream. Sync from the toolbar.
+   an already-fetched remote branch). For a local repository with no remote,
+   open **Manage remotes** first, add the remote, fetch it, then set the
+   upstream. Sync from the toolbar.
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and
@@ -140,7 +139,6 @@ The host answers `{ ok: true, value }` or
 | `deleteBranch` | `{ cwd, branch }` | `git branch -d` (unmerged branches are refused) |
 | `remoteBranches` | `{ cwd, remote }` | fetched branches of one remote |
 | `setUpstream` | `{ cwd, branch, remote, remoteBranch }` | `git branch --set-upstream-to` |
-| `pushBranch` | `{ cwd, localBranch, remote, remoteBranch }` | `git push --set-upstream <remote> <local>:refs/heads/<remote>` |
 | `addRemote` | `{ cwd, name, url }` | `git remote add` |
 | `removeRemote` | `{ cwd, name }` | `git remote remove` |
 | `fetch` / `pull` / `push` | `{ cwd }` | network verbs |

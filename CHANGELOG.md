@@ -11,7 +11,6 @@
 - Local branch switching and creation, recent commits with details, and fetch/pull/push.
 - Delete a merged local branch from the branch menu (safe `git branch -d`).
 - Publish a branch without an upstream: push it and set the upstream in one action.
-- Push the current branch to a remote branch with a custom name, creating it when new.
 - Manage remote repositories: add or remove a remote, list its URL, and fetch all remotes.
 - Set upstream from the branch menu, with the configured remotes and their fetched branches listed in the dialog.
 - English and Chinese UI, display metadata, and an original icon for the Plugin Manager.
