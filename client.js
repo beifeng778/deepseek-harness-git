@@ -86,6 +86,7 @@ window.__ModuleLoader__.load({
       setUpstream: 'Set upstream…',
       setUpstreamTitle: 'Set upstream',
       setUpstreamText: 'Choose the remote branch that {branch} should track.',
+      upstreamPushHint: 'The branch {branch} has no remote counterpart yet; push it first to create one.',
       remote: 'Remote',
       remoteBranch: 'Remote branch',
       noRemotes: 'No remotes are configured for this repository.',
@@ -93,6 +94,12 @@ window.__ModuleLoader__.load({
       loadingBranches: 'Loading branches…',
       savingUpstream: 'Setting upstream…',
       upstreamSet: 'Upstream set to {upstream}.',
+      deleteBranch: 'Delete branch',
+      deleteBranchTitle: 'Delete branch?',
+      deleteBranchText: 'Delete the local branch {branch}. Git refuses when it has unmerged commits.',
+      branchDeleted: 'Deleted branch {branch}.',
+      deletingBranch: 'Deleting branch…',
+      delete: 'Delete',
       save: 'Save',
       branchSwitched: 'Switched to {branch}',
       branchCreated: 'Created {branch}',
@@ -234,6 +241,7 @@ window.__ModuleLoader__.load({
       setUpstream: '设置上游…',
       setUpstreamTitle: '设置上游',
       setUpstreamText: '选择 {branch} 要跟踪的远程分支。',
+      upstreamPushHint: '分支 {branch} 还没有远程对应分支，先推送一次即可创建。',
       remote: '远程仓库',
       remoteBranch: '远程分支',
       noRemotes: '这个仓库没有配置远程仓库。',
@@ -241,6 +249,12 @@ window.__ModuleLoader__.load({
       loadingBranches: '正在加载分支…',
       savingUpstream: '正在设置上游…',
       upstreamSet: '上游已设置为 {upstream}。',
+      deleteBranch: '删除分支',
+      deleteBranchTitle: '删除分支？',
+      deleteBranchText: '删除本地分支 {branch}。如果有未合并提交，Git 会拒绝。',
+      branchDeleted: '已删除分支 {branch}。',
+      deletingBranch: '正在删除分支…',
+      delete: '删除',
       save: '保存',
       branchSwitched: '已切换到 {branch}',
       branchCreated: '已创建 {branch}',
@@ -468,6 +482,11 @@ window.__ModuleLoader__.load({
       .dg-menu-item:hover{background:var(--dsw-alias-bg-layer-2)}
       .dg-menu-item:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
       .dg-menu-item[data-current="true"]{color:var(--dsw-alias-brand-primary)}
+      .dg-branch-row{display:flex;align-items:center;gap:2px}
+      .dg-branch-switch{flex:1;min-width:0}
+      .dg-branch-delete{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:0;border-radius:5px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer;flex:none}
+      .dg-branch-delete:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-state-error-primary)}
+      .dg-branch-delete:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
       .dg-menu-check{display:inline-flex;align-items:center;justify-content:center;width:14px;height:18px;flex:none;color:var(--dsw-alias-brand-primary)}
       .dg-menu-item-main{display:flex;flex-direction:column;gap:1px;min-width:0}
       .dg-menu-item-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -1337,7 +1356,10 @@ window.__ModuleLoader__.load({
               ? h('option', { value: '' }, t('loadingBranches'))
               : branches.length === 0
                 ? h('option', { value: '' }, t('noRemoteBranches'))
-                : branches.map((name) => h('option', { key: name, value: name }, name))))),
+                : branches.map((name) => h('option', { key: name, value: name }, name)))),
+          repo?.branch && phase === 'ready' && branches.length > 0 && !branches.includes(repo.branch)
+            ? h('span', { className: 'dg-modal-text' }, t('upstreamPushHint', { branch: repo.branch }))
+            : null),
       error !== null ? h('span', { className: 'dg-modal-error' }, error) : null,
       h('div', { className: 'dg-modal-actions' },
         h('button', {
@@ -1352,6 +1374,47 @@ window.__ModuleLoader__.load({
           onClick: onSave,
           disabled: !canSave,
         }, busy === t('savingUpstream') ? h(Spinner, { size: 12 }) : null, t('save')))))
+    }
+
+    function DeleteBranchDialog({ t, branch, onCancel, onConfirm, busy }) {
+      const cancelRef = useRef(null)
+      useEffect(() => {
+        cancelRef.current?.focus?.()
+      }, [])
+      useEffect(() => {
+        const onKeyDown = (event) => {
+          if (event.key === 'Escape') onCancel()
+        }
+        document.addEventListener('keydown', onKeyDown)
+        return () => document.removeEventListener('keydown', onKeyDown)
+      }, [onCancel])
+      return h('div', {
+        className: 'dg-modal-backdrop',
+        onMouseDown: (event) => {
+          if (event.target === event.currentTarget) onCancel()
+        },
+      },
+      h('div', {
+        className: 'dg-modal',
+        role: 'dialog',
+        'aria-modal': 'true',
+        'aria-label': t('deleteBranchTitle'),
+      },
+      h('span', { className: 'dg-modal-title' }, t('deleteBranchTitle')),
+      h('span', { className: 'dg-modal-text' }, t('deleteBranchText', { branch })),
+      h('div', { className: 'dg-modal-actions' },
+        h('button', {
+          type: 'button',
+          ref: cancelRef,
+          className: 'dg-btn',
+          onClick: onCancel,
+        }, t('cancel')),
+        h('button', {
+          type: 'button',
+          className: 'dg-btn dg-btn-danger',
+          onClick: onConfirm,
+          disabled: Boolean(busy),
+        }, t('delete')))))
     }
 
     function RepoManager({
@@ -1460,6 +1523,7 @@ window.__ModuleLoader__.load({
       const [upstreamBranches, setUpstreamBranches] = useState([])
       const [upstreamPhase, setUpstreamPhase] = useState('idle')
       const [upstreamError, setUpstreamError] = useState(null)
+      const [deleteTarget, setDeleteTarget] = useState(null)
 
       const busyRef = useRef(null)
       busyRef.current = busy
@@ -1840,6 +1904,25 @@ window.__ModuleLoader__.load({
         }
       }, [activeRepoPath, call, loadState, repo, run, t, upstreamBranch, upstreamRemote])
 
+      const askDeleteBranch = useCallback((branch) => {
+        setMenu(null)
+        setDeleteTarget(branch)
+      }, [])
+
+      const confirmDeleteBranch = useCallback(async () => {
+        const branch = deleteTarget
+        if (branch === null) return
+        const value = await run(
+          t('deletingBranch'),
+          () => call('deleteBranch', { cwd: activeRepoPath, branch }),
+          t('branchDeleted', { branch }),
+        )
+        if (value !== undefined) {
+          setDeleteTarget(null)
+          await loadState({ quiet: true })
+        }
+      }, [activeRepoPath, call, deleteTarget, loadState, run, t])
+
       const selectFile = useCallback((entry, group) => {
         setSelected({
           kind: 'file',
@@ -2202,10 +2285,13 @@ window.__ModuleLoader__.load({
                   h('div', { className: 'dg-menu-label' }, t('switchBranch')),
                   branches.length === 0
                     ? h('div', { className: 'dg-menu-empty' }, t('noBranches'))
-                    : branches.map((branch) => h('button', {
+                    : branches.map((branch) => h('div', {
                       key: branch.name,
+                      className: 'dg-branch-row',
+                    },
+                    h('button', {
                       type: 'button',
-                      className: 'dg-menu-item',
+                      className: 'dg-menu-item dg-branch-switch',
                       'data-current': branch.current ? 'true' : 'false',
                       onClick: () => {
                         if (branch.current) setMenu(null)
@@ -2216,7 +2302,16 @@ window.__ModuleLoader__.load({
                     h('span', { className: 'dg-menu-item-main' },
                       h('span', { className: 'dg-menu-item-title' }, branch.name),
                       h('span', { className: 'dg-menu-item-path' },
-                        branch.upstream ?? t('noUpstream'))))),
+                        branch.upstream ?? t('noUpstream')))),
+                    branch.current
+                      ? null
+                      : h('button', {
+                        type: 'button',
+                        className: 'dg-branch-delete',
+                        title: t('deleteBranch'),
+                        'aria-label': t('deleteBranch'),
+                        onClick: () => askDeleteBranch(branch.name),
+                      }, h(TrashIcon, { size: 12 })))),
                   repo.branch !== null
                     ? h('button', {
                       type: 'button',
@@ -2497,6 +2592,15 @@ window.__ModuleLoader__.load({
             onBranch: setUpstreamBranch,
             onCancel: () => setUpstreamOpen(false),
             onSave: () => void saveUpstream(),
+          })
+          : null,
+        deleteTarget !== null
+          ? h(DeleteBranchDialog, {
+            t,
+            branch: deleteTarget,
+            onCancel: () => setDeleteTarget(null),
+            onConfirm: () => void confirmDeleteBranch(),
+            busy,
           })
           : null,
         managerOpen

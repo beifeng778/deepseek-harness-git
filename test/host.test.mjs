@@ -28,6 +28,7 @@ import {
   commit,
   checkout,
   createBranch,
+  deleteBranch,
   fetchRemote,
   pull,
   push,
@@ -289,6 +290,35 @@ async function main() {
       await checkout(git, repo, { branch: 'main' })
       state = await readState(git, repo)
       assert.equal(state.repo.branch, 'main')
+    })
+
+    await checkAsync('deleteBranch removes a merged local branch', async () => {
+      await createBranch(git, repo, { branch: 'delete-me' })
+      await checkout(git, repo, { branch: 'main' })
+      const value = await deleteBranch(git, repo, { branch: 'delete-me' })
+      assert.deepEqual(value, { branch: 'delete-me' })
+      const state = await readState(git, repo)
+      assert.ok(!state.branches.some((branch) => branch.name === 'delete-me'))
+    })
+
+    await checkAsync('deleteBranch refuses the current branch', async () => {
+      await assert.rejects(
+        () => deleteBranch(git, repo, { branch: 'main' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/branch-current',
+      )
+    })
+
+    await checkAsync('deleteBranch refuses an unmerged branch', async () => {
+      await createBranch(git, repo, { branch: 'unmerged' })
+      await write(path.join(repo, 'unmerged.txt'), 'x\n')
+      await stage(git, repo, { paths: ['unmerged.txt'] })
+      await commit(git, repo, { message: 'unmerged work' })
+      await checkout(git, repo, { branch: 'main' })
+      await assert.rejects(
+        () => deleteBranch(git, repo, { branch: 'unmerged' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/branch-delete-failed',
+      )
+      run(repo, ['branch', '-D', 'unmerged'])
     })
 
     await checkAsync('conflicts are their own group', async () => {

@@ -778,6 +778,22 @@ export async function createBranch(gitPath, cwd, payload = {}) {
   return { branch }
 }
 
+export async function deleteBranch(gitPath, cwd, payload = {}) {
+  const root = await mustRepoRoot(gitPath, cwd)
+  const branch = normalizeBranch(payload.branch)
+  const statusOut = await mustGit(gitPath, root, ['status', '--porcelain=v1', '-z', '--branch'])
+  const { head } = parseStatus(statusOut)
+  if (head.branch === branch) {
+    throw new GitPanelError('git/branch-current', 'Switch away from the branch before deleting it.')
+  }
+  try {
+    await mustGit(gitPath, root, ['branch', '-d', branch])
+  } catch (error) {
+    throw new GitPanelError('git/branch-delete-failed', clean(error?.message ?? error) || 'Could not delete the branch.')
+  }
+  return { branch }
+}
+
 export async function fetchRemote(gitPath, cwd) {
   const root = await mustRepoRoot(gitPath, cwd)
   const result = await runGit(gitPath, root, ['fetch', '--all', '--prune'], NETWORK_TIMEOUT_MS)
@@ -1375,6 +1391,9 @@ export function createGitService(options = {}) {
     async createBranch(ctx, payload) {
       return createBranch(gitPath, await admitPath(ctx, payload.cwd), payload)
     },
+    async deleteBranch(ctx, payload) {
+      return deleteBranch(gitPath, await admitPath(ctx, payload.cwd), payload)
+    },
     async remoteBranches(ctx, payload) {
       return readRemoteBranches(gitPath, await admitPath(ctx, payload.cwd), payload)
     },
@@ -1398,7 +1417,7 @@ export function createGitService(options = {}) {
 
 const ACTIONS = new Set([
   'repos', 'scan', 'models', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
-  'commit', 'checkout', 'createBranch', 'remoteBranches', 'setUpstream',
+  'commit', 'checkout', 'createBranch', 'deleteBranch', 'remoteBranches', 'setUpstream',
   'fetch', 'pull', 'push', 'init',
 ])
 

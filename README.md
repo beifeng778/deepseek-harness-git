@@ -31,7 +31,7 @@ The plugin is a bundle with two halves:
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
 | History | The 40 most recent commits; selecting one shows its metadata and patch. |
-| Branches | Local branch menu with upstream, current marker, switch, create, and **Set upstream**. |
+| Branches | Local branch menu with upstream, current marker, switch, create, delete, and **Set upstream**. |
 | Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
 | Sync | Fetch, pull, and push, with ahead/behind counts and a bounded 120-second network timeout. |
 | Empty states | No Workspaces, no repositories found (with **Scan again** and **Initialize repository**), no repositories loaded, clean tree, no staged changes, no commits. |
@@ -99,8 +99,8 @@ both fields together:
    asks the selected model for a message based on the staged changes (or the
    working-tree changes when nothing is staged). The **AI model** row defaults to
    the new-session model; choose another model to pin it for this browser.
-5. Switch branches from the branch chip; **Set upstream** in that menu points the
-   current branch at a fetched remote branch. Sync from the toolbar.
+5. Switch branches from the branch chip; the menu can create, delete, or **Set
+   upstream** for a local branch. Sync from the toolbar.
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and
@@ -132,6 +132,7 @@ The host answers `{ ok: true, value }` or
 | `commit` | `{ cwd, message, amend?, stageAll? }` | new short hash and output |
 | `checkout` | `{ cwd, branch }` | `git switch` |
 | `createBranch` | `{ cwd, branch }` | `git switch -c` |
+| `deleteBranch` | `{ cwd, branch }` | `git branch -d` (unmerged branches are refused) |
 | `remoteBranches` | `{ cwd, remote }` | fetched branches of one remote |
 | `setUpstream` | `{ cwd, branch, remote, remoteBranch }` | `git branch --set-upstream-to` |
 | `fetch` / `pull` / `push` | `{ cwd }` | network verbs |
@@ -227,6 +228,8 @@ the Actions tab (`workflow_dispatch`).
 - No conflict-resolution editor: conflicted files appear in their own **Merge
   changes** group with git's combined diff and can be marked resolved once the
   markers are removed elsewhere.
+- Branch deletion is the safe `git branch -d`: an unmerged branch is refused.
+  There is no force-delete control; use the CLI for `-D`.
 - No line-level (hunk) staging or inline diff editing.
 - AI message generation depends on the profile's default model; the prompt diff
   is truncated at 24,000 characters, and the message appears only after the
