@@ -896,7 +896,125 @@ function messageSystemPrompt(locale) {
 }
 
 /**
- * Ask the profile's default model for a commit message.
+ * Read the profile's new-session default model, when one is configured.
+ *
+ * The panel offers that selection as "Default"; the host also uses it when the
+ * request carries no explicit model.
+ */
+function readDefaultSelection(ctx) {
+  try {
+    const selection = safeGet(ctx, 'agentDefaultModel')?.currentSelection?.() ?? null
+    if (selection === null || typeof selection !== 'object') return null
+    if (typeof selection.provider !== 'string' || selection.provider === '') return null
+    if (typeof selection.model !== 'string' || selection.model === '') return null
+    return {
+      provider: selection.provider,
+      model: selection.model,
+      ...(typeof selection.reasoningEffort === 'string' && selection.reasoningEffort !== ''
+        ? { reasoningEffort: selection.reasoningEffort }
+        : {}),
+    }
+  } catch {
+    return null
+  }
+}
+
+/** Read a model chosen in the panel; null means "use the default". */
+function readMessageSelection(payload) {
+  const provider = typeof payload?.provider === 'string' ? payload.provider.trim() : ''
+  const model = typeof payload?.model === 'string' ? payload.model.trim() : ''
+  if (provider === '' && model === '') return null
+  if (provider === '' || model === '' || provider.length > 200 || model.length > 300) {
+    throw new GitPanelError('git/model-invalid', 'The selected model is invalid.')
+  }
+  return { provider, model }
+}
+
+/**
+ * List the model catalog offered by the profile's adapters, plus the
+ * new-session default. The panel uses this for its model picker; one adapter
+ * failing to list models contributes an error instead of failing the page.
+ */
+async function listMessageModels(ctx) {
+  const defaultSelection = readDefaultSelection(ctx)
+  const llm = safeGet(ctx, 'llm')
+  if (llm === undefined || typeof llm.listProviders !== 'function') {
+    return {
+      default: defaultSelection,
+      providers: [],
+      models: [],
+      errors: [{ provider: '*', message: 'The LLM service is unavailable in this profile.' }],
+      truncated: false,
+    }
+  }
+  let rawProviders
+  try {
+    rawProviders = llm.listProviders()
+  } catch (error) {
+    return {
+      default: defaultSelection,
+      providers: [],
+      models: [],
+      errors: [{ provider: '*', message: clean(error?.message ?? error) }],
+      truncated: false,
+    }
+  }
+  if (!Array.isArray(rawProviders)) rawProviders = []
+  const seen = new Set()
+  const providers = []
+  for (const provider of rawProviders) {
+    if (provider === null || typeof provider !== 'object') continue
+    if (typeof provider.id !== 'string' || provider.id === '' || seen.has(provider.id)) continue
+    seen.add(provider.id)
+    providers.push({
+      id: provider.id,
+      name: typeof provider.name === 'string' && provider.name !== '' ? provider.name : provider.id,
+    })
+  }
+  const boundedProviders = providers.slice(0, 24)
+  const models = []
+  const errors = []
+  const maxModels = 500
+  await Promise.all(boundedProviders.map(async (provider) => {
+    if (typeof llm.listModels !== 'function') {
+      errors.push({ provider: provider.id, message: 'Model listing is unavailable.' })
+      return
+    }
+    try {
+      const list = await llm.listModels(provider.id)
+      if (!Array.isArray(list)) return
+      for (const model of list) {
+        if (models.length >= maxModels) return
+        if (model === null || typeof model !== 'object') continue
+        if (typeof model.id !== 'string' || model.id === '') continue
+        models.push({
+          provider: provider.id,
+          model: model.id,
+          name: typeof model.name === 'string' && model.name !== '' ? model.name : model.id,
+          ...(typeof model.description === 'string' && model.description !== ''
+            ? { description: model.description }
+            : {}),
+        })
+      }
+    } catch (error) {
+      errors.push({ provider: provider.id, message: clean(error?.message ?? error) })
+    }
+  }))
+  models.sort((left, right) => {
+    if (left.provider !== right.provider) return left.provider.localeCompare(right.provider)
+    return left.name.localeCompare(right.name)
+  })
+  return {
+    default: defaultSelection,
+    providers: boundedProviders,
+    models,
+    errors,
+    truncated: providers.length > boundedProviders.length || models.length >= maxModels,
+  }
+}
+
+/**
+ * Ask a model for a commit message.
  *
  * The call goes through `ctx.llm.prepareCall` so capability validation and
  * adapter defaults apply, then the stream is accumulated locally; the panel
@@ -917,20 +1035,15 @@ async function generateCommitMessage(ctx, cwd, payload, gitPath, options = {}) {
   if (llm === undefined || typeof llm.prepareCall !== 'function') {
     throw new GitPanelError('git/llm-unavailable', 'The LLM service is unavailable in this profile.')
   }
-  let selection = null
-  try {
-    selection = safeGet(ctx, 'agentDefaultModel')?.currentSelection?.() ?? null
-  } catch {
-    selection = null
-  }
-  const provider = typeof options.messageProvider === 'string' && options.messageProvider !== ''
-    ? options.messageProvider
-    : selection?.provider
-  const model = typeof options.messageModel === 'string' && options.messageModel !== ''
-    ? options.messageModel
-    : selection?.model
+  let selection = readMessageSelection(payload)
+    ?? (typeof options.messageProvider === 'string' && options.messageProvider !== ''
+      ? { provider: options.messageProvider, model: options.messageModel }
+      : null)
+    ?? readDefaultSelection(ctx)
+  const provider = selection?.provider
+  const model = selection?.model
   if (typeof provider !== 'string' || provider === '' || typeof model !== 'string' || model === '') {
-    throw new GitPanelError('git/no-model', 'No default model is configured. Pick one in Settings, Models.')
+    throw new GitPanelError('git/no-model', 'No model is configured. Pick one in the commit box or Settings, Models.')
   }
 
   const signal = AbortSignal.timeout(MESSAGE_TIMEOUT_MS)
@@ -940,8 +1053,12 @@ async function generateCommitMessage(ctx, cwd, payload, gitPath, options = {}) {
       { provider, model, maxTokens: MESSAGE_MAX_OUTPUT_TOKENS },
       signal,
       (controls, modelInfo) => {
-        const effort = modelInfo?.reasoning?.efforts?.[0]?.id
-        return effort === undefined ? controls : { ...controls, reasoningEffort: effort }
+        const efforts = Array.isArray(modelInfo?.reasoning?.efforts) ? modelInfo.reasoning.efforts : []
+        const preferred = typeof selection?.reasoningEffort === 'string'
+          && efforts.some((effort) => effort.id === selection.reasoningEffort)
+          ? selection.reasoningEffort
+          : modelInfo?.reasoning?.defaultEffort ?? efforts[0]?.id
+        return preferred === undefined ? controls : { ...controls, reasoningEffort: preferred }
       },
     )
   } catch (error) {
@@ -1141,6 +1258,9 @@ export function createGitService(options = {}) {
     async scan(ctx, payload) {
       return scanRepositories(await admitPath(ctx, payload.cwd))
     },
+    async models(ctx) {
+      return listMessageModels(ctx)
+    },
     async message(ctx, payload) {
       return generateCommitMessage(
         ctx,
@@ -1193,7 +1313,7 @@ export function createGitService(options = {}) {
 }
 
 const ACTIONS = new Set([
-  'repos', 'scan', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
+  'repos', 'scan', 'models', 'message', 'state', 'diff', 'show', 'stage', 'unstage', 'discard',
   'commit', 'checkout', 'createBranch', 'fetch', 'pull', 'push', 'init',
 ])
 

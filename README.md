@@ -28,6 +28,7 @@ The plugin is a bundle with two halves:
 | Repository selection | A **Manage repositories** dialog lists every detected repository with a checkbox; the choice is persisted per Workspace, and the header's repository chip switches the active one. |
 | Changes | Merge, staged, and working-tree groups with status letters (`M`, `A`, `D`, `R`, `C`, `T`, `U`, `!`), original paths for renames, and per-row stage/unstage/discard. |
 | Commit | Message box with a per-repository draft, `Ctrl`/`Cmd`+`Enter`, amend, staged count, stage-all, and AI message generation from the changes. |
+| AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
 | History | The 40 most recent commits; selecting one shows its metadata and patch. |
 | Branches | Local branch menu with upstream, current marker, switch, and create. |
@@ -70,8 +71,10 @@ The bundle's `cordis.patch.yml` inserts one row:
         gitPath: 'C:\Program Files\Git\cmd\git.exe'
 ```
 
-AI message generation uses the profile's default model. To route it to a
-specific model instead, set both fields (they must be supplied together):
+AI message generation defaults to the profile's new-session model. The commit
+box's **AI model** selector can pin another provider/model for this browser; the
+optional profile config below is the fallback when no selection is stored. Set
+both fields together:
 
 ```yaml
 - insert:
@@ -92,8 +95,9 @@ specific model instead, set both fields (they must be supplied together):
    load. The choice is remembered per Workspace.
 4. Use the repository chip to switch the active repository, review a file, stage
    it, write a message, and commit. The **Generate** button in the commit box
-   asks the default model for a message based on the staged changes (or the
-   working-tree changes when nothing is staged).
+   asks the selected model for a message based on the staged changes (or the
+   working-tree changes when nothing is staged). The **AI model** row defaults to
+   the new-session model; choose another model to pin it for this browser.
 5. Switch branches from the branch chip; sync from the toolbar.
 
 The page is root-scoped, so it remains usable with no Session selected. It
@@ -115,7 +119,8 @@ The host answers `{ ok: true, value }` or
 |---|---|---|
 | `repos` | — | `{ workspaces: [{ id, title, path }] }` |
 | `scan` | `{ cwd }` | `{ workspace, repos: [{ path, relativePath, name }], truncated }` |
-| `message` | `{ cwd, locale }` | AI-generated commit message, model route, and file count |
+| `models` | — | provider/model catalog plus the new-session default |
+| `message` | `{ cwd, locale, provider?, model? }` | AI-generated commit message, model route, and file count |
 | `state` | `{ cwd }` | repository head, staged/unstaged entries, branches, commits |
 | `diff` | `{ cwd, path, group, originalPath? }` | one parsed patch |
 | `show` | `{ cwd, hash }` | commit metadata and parsed patch |
@@ -140,8 +145,9 @@ The host answers `{ ok: true, value }` or
 - **No shell.** Commands use `execFile` with an argv array. User paths travel
   after `--`, and branch names are validated before they reach argv.
 - **AI data egress.** AI message generation sends the changed-file list and a
-  bounded diff (24,000 characters) to the profile's default model through
-  `ctx.llm`; it never calls an external service directly.
+  bounded diff (24,000 characters) to the selected model (default: the profile's
+  new-session model) through `ctx.llm`; it never calls an external service
+  directly.
 - **Path containment.** Diff and mutation paths must be repository-relative,
   with no `..` segment or drive prefix.
 - **Non-interactive.** `GIT_TERMINAL_PROMPT=0`, `GIT_EDITOR=true`, and pager

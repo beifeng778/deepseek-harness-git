@@ -464,8 +464,10 @@ async function main() {
     await write(path.join(messageRepo, 'alpha.txt'), 'one\ntwo\nthree\nmessage\n')
     await stage(git, messageRepo, { paths: ['alpha.txt'] })
     let captured = null
+    let capturedConfig = null
     const fakeLlm = {
       async prepareCall(config) {
+        capturedConfig = config
         return {
           config,
           stream: async function* (options) {
@@ -503,6 +505,73 @@ async function main() {
       assert.ok(captured.system.includes('Simplified Chinese'))
       assert.ok(captured.messages[0].content[0].text.includes('alpha.txt'))
       assert.ok(captured.messages[0].content[0].text.includes('Staged diff:'))
+    })
+
+    await checkAsync('message uses an explicitly selected model', async () => {
+      const value = await service.message(ctx, {
+        cwd: messageRepo,
+        locale: 'en',
+        provider: 'other-provider',
+        model: 'other-model',
+      })
+      assert.deepEqual(value.model, { provider: 'other-provider', model: 'other-model' })
+      assert.equal(capturedConfig.provider, 'other-provider')
+      assert.equal(capturedConfig.model, 'other-model')
+    })
+
+    await checkAsync('message rejects a partial model selection', async () => {
+      await assert.rejects(
+        () => service.message(ctx, { cwd: messageRepo, provider: 'other-provider' }),
+        (error) => error instanceof GitPanelError && error.code === 'git/model-invalid',
+      )
+    })
+
+    await checkAsync('models lists the catalog and the new-session default', async () => {
+      const catalogLlm = {
+        listProviders: () => [
+          { id: 'fake-provider', name: 'Fake Provider' },
+          { id: 'other', name: 'Other' },
+        ],
+        listModels: async (provider) => provider === 'fake-provider'
+          ? [{ id: 'fake-model', name: 'Fake Model' }, { id: 'fake-large', name: 'Fake Large' }]
+          : [{ id: 'other-model', name: 'Other Model' }],
+      }
+      const catalogCtx = {
+        get(name) {
+          if (name === 'llm') return catalogLlm
+          if (name === 'agentDefaultModel') return { currentSelection: () => ({ provider: 'fake-provider', model: 'fake-model' }) }
+          return undefined
+        },
+      }
+      const value = await service.models(catalogCtx)
+      assert.deepEqual(value.default, { provider: 'fake-provider', model: 'fake-model' })
+      assert.deepEqual(value.providers, [
+        { id: 'fake-provider', name: 'Fake Provider' },
+        { id: 'other', name: 'Other' },
+      ])
+      assert.deepEqual(value.models.map((model) => `${model.provider}/${model.model}`), [
+        'fake-provider/fake-large',
+        'fake-provider/fake-model',
+        'other/other-model',
+      ])
+      assert.deepEqual(value.errors, [])
+      assert.equal(value.truncated, false)
+    })
+
+    await checkAsync('models reports one failing provider without failing the catalog', async () => {
+      const partialLlm = {
+        listProviders: () => [{ id: 'ok', name: 'OK' }, { id: 'broken', name: 'Broken' }],
+        listModels: async (provider) => {
+          if (provider === 'broken') throw new Error('listing failed')
+          return [{ id: 'ok-model', name: 'OK Model' }]
+        },
+      }
+      const partialCtx = { get: (name) => (name === 'llm' ? partialLlm : undefined) }
+      const value = await service.models(partialCtx)
+      assert.equal(value.models.length, 1)
+      assert.equal(value.models[0].model, 'ok-model')
+      assert.equal(value.errors.length, 1)
+      assert.equal(value.errors[0].provider, 'broken')
     })
 
     await checkAsync('message refuses a profile without an LLM service', async () => {

@@ -30,6 +30,9 @@ window.__ModuleLoader__.load({
     const ACTIVE_PREFIX = 'dsh-git.active:'
     const ENABLED_PREFIX = 'dsh-git.enabled:'
     const DRAFT_PREFIX = 'dsh-git.draft:'
+    const MODEL_KEY = 'dsh-git.messageModel'
+    /** Separator for a provider/model pair inside one <option> value. */
+    const MODEL_SEPARATOR = '\t'
     /** Client-side render cap for one patch. */
     const RENDER_LINES = 1500
 
@@ -100,6 +103,11 @@ window.__ModuleLoader__.load({
       generatingMessage: 'Generating a commit message…',
       noChangesHint: 'There are no changes to describe.',
       messageEmpty: 'The model returned an empty commit message.',
+      aiModel: 'AI model',
+      modelDefault: 'Default (new session model)',
+      modelsLoading: 'Loading models…',
+      modelsUnavailable: 'No models available',
+      modelHint: 'Model used for AI commit message generation',
       stageAll: 'Stage all',
       unstageAll: 'Unstage all',
       stagedCount: '{n} staged',
@@ -232,6 +240,11 @@ window.__ModuleLoader__.load({
       generatingMessage: '正在生成提交信息…',
       noChangesHint: '没有可描述的更改。',
       messageEmpty: '模型返回了空的提交信息。',
+      aiModel: 'AI 模型',
+      modelDefault: '默认（新会话模型）',
+      modelsLoading: '正在加载模型…',
+      modelsUnavailable: '没有可用模型',
+      modelHint: '用于 AI 生成提交信息的模型',
       stageAll: '全部暂存',
       unstageAll: '全部取消暂存',
       stagedCount: '已暂存 {n} 个',
@@ -349,6 +362,11 @@ window.__ModuleLoader__.load({
       .dg-textarea{width:100%;min-height:64px;max-height:180px;resize:vertical;border:0.5px solid var(--dsw-alias-border-l2);border-radius:7px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:1.5;padding:7px 9px}
       .dg-textarea::placeholder{color:var(--dsw-alias-label-secondary)}
       .dg-textarea:focus{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
+      .dg-model-row{display:flex;align-items:center;gap:6px;min-width:0}
+      .dg-model-label{color:var(--dsw-alias-label-secondary);font-size:11px;white-space:nowrap;flex:none}
+      .dg-model-select{flex:1;min-width:0;height:24px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:11.5px;padding:0 5px}
+      .dg-model-select:focus{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}
+      .dg-model-select:disabled{opacity:.55;cursor:not-allowed}
       .dg-commit-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
       .dg-check{display:inline-flex;align-items:center;gap:5px;color:var(--dsw-alias-label-secondary);font-size:11.5px;cursor:pointer;user-select:none}
       .dg-check input{margin:0;accent-color:var(--dsw-alias-brand-primary)}
@@ -496,6 +514,42 @@ window.__ModuleLoader__.load({
       } catch {
         /* storage can be unavailable in a hardened page; drafts are optional */
       }
+    }
+
+    /** Persisted model override for AI commit messages; null means "default". */
+    function readModelSelection() {
+      const raw = readLocal(MODEL_KEY)
+      if (raw === null || raw === '') return null
+      try {
+        const parsed = JSON.parse(raw)
+        if (parsed !== null && typeof parsed === 'object'
+          && typeof parsed.provider === 'string' && parsed.provider !== ''
+          && typeof parsed.model === 'string' && parsed.model !== '') {
+          return { provider: parsed.provider, model: parsed.model }
+        }
+      } catch {
+        /* fall through to the default */
+      }
+      return null
+    }
+
+    function writeModelSelection(selection) {
+      if (selection === null) {
+        writeLocal(MODEL_KEY, null)
+        return
+      }
+      writeLocal(MODEL_KEY, JSON.stringify({ provider: selection.provider, model: selection.model }))
+    }
+
+    function modelKey(provider, model) {
+      return `${provider}${MODEL_SEPARATOR}${model}`
+    }
+
+    function parseModelKey(value) {
+      if (typeof value !== 'string') return null
+      const index = value.indexOf(MODEL_SEPARATOR)
+      if (index <= 0 || index === value.length - 1) return null
+      return { provider: value.slice(0, index), model: value.slice(index + 1) }
     }
 
     /** Persisted repository selection for one Workspace: null when never saved. */
@@ -1056,6 +1110,7 @@ window.__ModuleLoader__.load({
     function CommitBox({
       t, message, onMessage, amend, onAmend, stagedCount, unstagedCount,
       canCommit, canGenerate, generating, busy, onCommit, onStageAll, onGenerate, textareaRef,
+      modelCatalog, modelSelection, modelError, onModelChange,
     }) {
       const onKeyDown = (event) => {
         if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
@@ -1063,7 +1118,51 @@ window.__ModuleLoader__.load({
           onCommit()
         }
       }
+      const models = Array.isArray(modelCatalog?.models) ? modelCatalog.models : []
+      const providers = Array.isArray(modelCatalog?.providers) ? modelCatalog.providers : []
+      const selectedKey = modelSelection === null ? '' : modelKey(modelSelection.provider, modelSelection.model)
+      const defaultSelection = modelCatalog?.default ?? null
+      const defaultModel = defaultSelection === null
+        ? null
+        : models.find((model) => model.provider === defaultSelection.provider && model.model === defaultSelection.model) ?? null
+      const defaultLabel = defaultModel === null
+        ? t('modelDefault')
+        : `${t('modelDefault')} · ${defaultModel.name}`
+      const modelDisabled = modelCatalog === null || models.length === 0
+      const modelTitle = modelError !== null && modelError !== undefined
+        ? t('modelsUnavailable')
+        : modelCatalog === null
+          ? t('modelsLoading')
+          : models.length === 0 ? t('modelsUnavailable') : t('modelHint')
       return h('div', { className: 'dg-commit' },
+        h('div', { className: 'dg-model-row' },
+          h('span', { className: 'dg-model-label' }, t('aiModel')),
+          h('select', {
+            className: 'dg-model-select',
+            value: selectedKey,
+            disabled: modelDisabled,
+            title: modelTitle,
+            'aria-label': t('aiModel'),
+            onChange: (event) => {
+              const value = event.target.value
+              if (value === '') {
+                onModelChange(null)
+                return
+              }
+              const parsed = parseModelKey(value)
+              if (parsed !== null) onModelChange(parsed)
+            },
+          },
+          h('option', { value: '' }, defaultLabel),
+          providers.map((provider) => {
+            const group = models.filter((model) => model.provider === provider.id)
+            if (group.length === 0) return null
+            return h('optgroup', { key: provider.id, label: provider.name },
+              group.map((model) => h('option', {
+                key: modelKey(provider.id, model.model),
+                value: modelKey(provider.id, model.model),
+              }, model.name)))
+          }))),
         h('textarea', {
           ref: textareaRef,
           className: 'dg-textarea',
@@ -1254,6 +1353,9 @@ window.__ModuleLoader__.load({
       const [branchDraft, setBranchDraft] = useState('')
       const [discardTargets, setDiscardTargets] = useState(null)
       const [openSections, setOpenSections] = useState({ conflicts: true, staged: true, changes: true, history: true })
+      const [modelCatalog, setModelCatalog] = useState(null)
+      const [modelSelection, setModelSelection] = useState(readModelSelection)
+      const [modelError, setModelError] = useState(null)
 
       const busyRef = useRef(null)
       busyRef.current = busy
@@ -1268,6 +1370,21 @@ window.__ModuleLoader__.load({
       const activeRepoRef = useRef(activeRepoPath)
       activeRepoRef.current = activeRepoPath
       const scannedWorkspaceRef = useRef(null)
+
+      /** A persisted model is usable only while the catalog still offers it. */
+      const effectiveModel = useMemo(() => {
+        if (modelSelection === null) return null
+        const models = Array.isArray(modelCatalog?.models) ? modelCatalog.models : null
+        if (models === null) return null
+        return models.some((model) => model.provider === modelSelection.provider && model.model === modelSelection.model)
+          ? modelSelection
+          : null
+      }, [modelCatalog, modelSelection])
+
+      const changeModel = useCallback((selection) => {
+        setModelSelection(selection)
+        writeModelSelection(selection)
+      }, [])
 
       useEffect(() => {
         if (sideRef.current !== null) sideRef.current.scrollTop = 0
@@ -1324,6 +1441,21 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         if (workspacePath) writeLocal(WORKSPACE_KEY, workspacePath)
       }, [workspacePath])
+
+      // 1b. Read the model catalog used by the commit-message picker.
+      useEffect(() => {
+        let alive = true
+        call('models', {}).then((value) => {
+          if (!alive) return
+          setModelCatalog(value !== null && typeof value === 'object' ? value : null)
+          setModelError(null)
+        }).catch((failure) => {
+          if (!alive) return
+          setModelCatalog(null)
+          setModelError(failure?.message ?? String(failure))
+        })
+        return () => { alive = false }
+      }, [call])
 
       // 2a. Reset the page when the Workspace changes and restore its selection.
       useEffect(() => {
@@ -1633,7 +1765,12 @@ window.__ModuleLoader__.load({
           const locale = typeof getLocaleId === 'function'
             ? getLocaleId()
             : ((typeof navigator !== 'undefined' && navigator.language) || 'en')
-          const value = await call('message', { cwd: activeRepoPath, locale })
+          const payload = { cwd: activeRepoPath, locale }
+          if (effectiveModel !== null) {
+            payload.provider = effectiveModel.provider
+            payload.model = effectiveModel.model
+          }
+          const value = await call('message', payload)
           if (seq !== messageSeq.current || activeRepoPath !== activeRepoRef.current) return
           const text = String(value?.message ?? '').trim()
           if (text === '') throw new Error(t('messageEmpty'))
@@ -1646,7 +1783,7 @@ window.__ModuleLoader__.load({
         } finally {
           if (seq === messageSeq.current) setGeneratingMessage(false)
         }
-      }, [activeRepoPath, call, generatingMessage, getLocaleId, t])
+      }, [activeRepoPath, call, effectiveModel, generatingMessage, getLocaleId, t])
 
       const switchBranch = useCallback(async (branch) => {
         setMenu(null)
@@ -2062,6 +2199,10 @@ window.__ModuleLoader__.load({
               onStageAll: () => void stageAll(),
               onGenerate: () => void generateMessage(),
               textareaRef: messageRef,
+              modelCatalog,
+              modelSelection: effectiveModel,
+              modelError,
+              onModelChange: changeModel,
             }),
             h('div', { className: 'dg-side-scroll', ref: sideRef },
               h(FileSection, {
