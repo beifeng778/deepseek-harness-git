@@ -169,11 +169,12 @@ original and uses the Harness slot, locale, and Connection APIs.
 
 The npm name `dsh-git` is already reserved at `0.0.1` by `dushaobindoudou`, so
 publishing this release requires access to that package (or a new name/scope in
-`package.json` and `cordis.patch.yml`). The local npm registry may point at a
-mirror, so publish to the canonical registry explicitly:
+`package.json` and `cordis.patch.yml`). `publishConfig.registry` points at the
+canonical registry, so a plain publish works even when the local install
+registry is a mirror:
 
 ```
-npm publish --registry=https://registry.npmjs.org
+npm publish
 ```
 
 `prepublishOnly` runs `npm run check && npm test` before the upload, and
