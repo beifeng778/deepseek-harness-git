@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.0.1
+
+- CI: publish future releases through npm trusted publishing (OIDC).
+
 ## 1.0.0
 
 - Initial release of `deepseek-harness-git`, the Git source-control page for the DeepSeek Harness Web GUI.
