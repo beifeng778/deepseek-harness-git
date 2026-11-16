@@ -16,13 +16,17 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
-          registry-url: https://registry.npmjs.org
+          node-version: 24
+      # Trusted publishing needs npm >= 11.5.1. Node 22's bundled npm is older,
+      # and setup-node's registry-url writes an empty NODE_AUTH_TOKEN placeholder
+      # when no token secret exists, so set the registry explicitly instead.
+      - run: npm install -g npm@11
+      - run: npm config set registry https://registry.npmjs.org
+      - run: npm --version
       - run: npm run check
       - run: npm test
-      # Trusted publishing (OIDC): configure the npm package's Trusted Publisher
-      # for this repository and workflow before the first automated release.
-      # The very first publish must be done manually; afterwards this workflow
-      # publishes without an NPM_TOKEN secret.
+      # Trusted publishing (OIDC): the npm package's Trusted Publisher is
+      # configured for this repository and publish.yml. The very first publish
+      # was manual; this workflow publishes later versions without a token.
       # `--provenance` requires a public repository and the id-token permission.
       - run: npm publish --provenance --access public
