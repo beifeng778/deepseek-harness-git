@@ -727,6 +727,27 @@ export async function readDiff(gitPath, cwd, payload = {}) {
   return { path: relativePath, group, untracked, files: parsed.files, truncated: parsed.truncated }
 }
 
+/** Parse `git diff-tree --name-status -z` into file changes. */
+function parseNameStatus(text) {
+  const tokens = String(text ?? '').split('\0')
+  const changes = []
+  let index = 0
+  while (index < tokens.length) {
+    const token = tokens[index++]
+    if (token === '') continue
+    const status = token[0]
+    if (status === 'R' || status === 'C') {
+      const from = tokens[index++] ?? ''
+      const to = tokens[index++] ?? ''
+      if (to !== '') changes.push({ status, path: to, originalPath: from })
+    } else {
+      const path = tokens[index++] ?? ''
+      if (path !== '') changes.push({ status, path, originalPath: null })
+    }
+  }
+  return changes
+}
+
 /** One commit's metadata and patch. */
 export async function readShow(gitPath, cwd, payload = {}) {
   const root = await mustRepoRoot(gitPath, cwd)
@@ -741,12 +762,44 @@ export async function readShow(gitPath, cwd, payload = {}) {
   ])
   const [hashFull = '', short = '', author = '', email = '', date = '', subject = ''] =
     meta.split('\x1e')[0].split('\x1f')
-  const patch = await mustGit(gitPath, root, [
-    'show', '--pretty=format:', '--patch', '--no-color', '--no-ext-diff', '--find-renames', '-U3', hash,
-  ])
+  const parentsOut = await mustGit(gitPath, root, ['rev-list', '--parents', '-n', '1', hash])
+  const parents = parentsOut.trim().split(/\s+/).filter((parent) => parent !== '')
+  const changesOut = parents.length > 2
+    ? await mustGit(gitPath, root, ['diff', '--name-status', '-z', '-M', parents[1], hash])
+    : await mustGit(gitPath, root, [
+      'diff-tree', '--root', '--no-commit-id', '--name-status', '-r', '-M', '-z', hash,
+    ])
+  const changes = parseNameStatus(changesOut)
+  const relativePath = typeof payload.path === 'string' && payload.path !== ''
+    ? normalizeRelPath(payload.path)
+    : null
+  const originalPath = typeof payload.originalPath === 'string' && payload.originalPath !== ''
+    ? normalizeRelPath(payload.originalPath)
+    : null
+  if (relativePath === null) {
+    return {
+      commit: { hash: hashFull, short, author, email, date, subject },
+      changes,
+      files: [],
+      truncated: false,
+    }
+  }
+  const pathspec = originalPath !== null && originalPath !== relativePath
+    ? [relativePath, originalPath]
+    : [relativePath]
+  const patch = parents.length > 2
+    ? await mustGit(gitPath, root, [
+      'diff', '--no-color', '--no-ext-diff', '--find-renames', '-U3',
+      parents[1], hash, '--', ...pathspec,
+    ])
+    : await mustGit(gitPath, root, [
+      'show', '--pretty=format:', '--patch', '--no-color', '--no-ext-diff', '--find-renames', '-U3',
+      hash, '--', ...pathspec,
+    ])
   const parsed = parsePatch(patch)
   return {
     commit: { hash: hashFull, short, author, email, date, subject },
+    changes,
     files: parsed.files,
     truncated: parsed.truncated,
   }

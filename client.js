@@ -31,6 +31,7 @@ window.__ModuleLoader__.load({
     const ENABLED_PREFIX = 'dsh-git.enabled:'
     const DRAFT_PREFIX = 'dsh-git.draft:'
     const MODEL_KEY = 'dsh-git.messageModel'
+    const TREE_VIEW_KEY = 'dsh-git.treeView'
     /** Separator for a provider/model pair inside one <option> value. */
     const MODEL_SEPARATOR = '\t'
     /** Client-side render cap for one patch. */
@@ -165,6 +166,8 @@ window.__ModuleLoader__.load({
       discarding: 'Discarding…',
       filesCount: '{n} files',
       stagedChanges: 'Staged changes',
+      treeView: 'Tree view',
+      listView: 'List view',
       mergeChanges: 'Merge changes',
       changes: 'Changes',
       history: 'Recent commits',
@@ -188,6 +191,10 @@ window.__ModuleLoader__.load({
       commitDetails: 'Commit {hash}',
       filesChanged: '{n} files changed',
       backToChanges: 'Back to changes',
+      noChangedFiles: 'No changed files.',
+      selectCommitFile: 'Select a changed file',
+      selectCommitFileHint: 'Choose a file below the commit to see its patch.',
+      loadingChangedFiles: 'Loading changed files…',
       notARepository: 'Not a Git repository',
       notARepositoryHint: 'This workspace has no Git repository. Initialize one to start tracking changes.',
       initRepository: 'Initialize repository',
@@ -339,6 +346,8 @@ window.__ModuleLoader__.load({
       discarding: '正在放弃…',
       filesCount: '{n} 个文件',
       stagedChanges: '已暂存的更改',
+      treeView: '目录树',
+      listView: '列表',
       mergeChanges: '合并更改',
       changes: '更改',
       history: '最近提交',
@@ -362,6 +371,10 @@ window.__ModuleLoader__.load({
       commitDetails: '提交 {hash}',
       filesChanged: '{n} 个文件更改',
       backToChanges: '返回更改',
+      noChangedFiles: '没有更改的文件。',
+      selectCommitFile: '选择一个更改的文件',
+      selectCommitFileHint: '在提交下方选择一个文件查看差异。',
+      loadingChangedFiles: '正在加载更改文件…',
       notARepository: '不是 Git 仓库',
       notARepositoryHint: '此工作区没有 Git 仓库。初始化后即可开始跟踪更改。',
       initRepository: '初始化仓库',
@@ -431,7 +444,7 @@ window.__ModuleLoader__.load({
       .dg-body{display:grid;grid-template-columns:minmax(300px,360px) minmax(0,1fr);flex:1;min-height:0}
       .dg-body-single{display:flex;align-items:stretch;justify-content:stretch}
       .dg-side{display:flex;flex-direction:column;min-height:0;overflow:hidden;border-right:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-base)}
-      .dg-side-scroll{flex:1;min-height:0;overflow:auto}
+      .dg-side-scroll{display:block;flex:1;min-height:0;overflow:auto}
       .dg-commit{display:flex;flex-direction:column;gap:7px;flex:none;padding:12px 12px 10px;border-bottom:0.5px solid var(--dsw-alias-border-l1)}
       .dg-textarea{width:100%;min-height:64px;max-height:180px;resize:vertical;border:0.5px solid var(--dsw-alias-border-l2);border-radius:7px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:12.5px;line-height:1.5;padding:7px 9px}
       .dg-textarea::placeholder{color:var(--dsw-alias-label-secondary)}
@@ -446,7 +459,7 @@ window.__ModuleLoader__.load({
       .dg-check input{margin:0;accent-color:var(--dsw-alias-brand-primary)}
       .dg-commit-count{color:var(--dsw-alias-label-secondary);font-size:11.5px;font-variant-numeric:tabular-nums}
       .dg-commit-actions{display:flex;align-items:center;gap:6px;justify-content:flex-end;flex-wrap:wrap}
-      .dg-section{border-bottom:0.5px solid var(--dsw-alias-border-l1)}
+      .dg-section{display:block;border-bottom:0.5px solid var(--dsw-alias-border-l1)}
       .dg-section-head{display:flex;align-items:center;gap:4px;padding:5px 8px 5px 12px;position:sticky;top:0;z-index:2;background:var(--dsw-alias-bg-base)}
       .dg-section-toggle{display:flex;align-items:center;gap:6px;flex:1;min-width:0;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;font-size:11px;font-weight:600;letter-spacing:.045em;text-transform:uppercase;text-align:left;padding:3px 0;cursor:pointer}
       .dg-section-toggle:hover{color:var(--dsw-alias-label-primary)}
@@ -476,9 +489,12 @@ window.__ModuleLoader__.load({
       .dg-file-actions{display:flex;align-items:center;gap:1px;flex:none;opacity:0}
       .dg-file:hover .dg-file-actions,.dg-file:focus-within .dg-file-actions{opacity:1}
       .dg-file-actions .dg-icon-btn{width:22px;height:22px}
+      .dg-commit-row{display:block}
       .dg-commit-row-button{display:flex;flex-direction:column;gap:1px;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:5px 12px;cursor:pointer}
       .dg-commit-row-button:hover{background:var(--dsw-alias-bg-layer-2)}
       .dg-commit-row-button:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+      .dg-commit-row[data-active="true"] .dg-commit-row-button{background:var(--dsw-alias-bg-layer-2)}
+      .dg-commit-caret{display:inline-flex;align-items:center;flex:none;color:var(--dsw-alias-label-secondary)}
       .dg-commit-line{display:flex;align-items:baseline;gap:7px;min-width:0;width:100%}
       .dg-hash{flex:none;color:var(--dsw-alias-brand-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
       .dg-subject{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
@@ -498,6 +514,11 @@ window.__ModuleLoader__.load({
       .dg-commit-detail{display:flex;flex-direction:column;gap:2px;padding:8px 16px;border-bottom:0.5px solid var(--dsw-alias-border-l1);background:var(--dsw-alias-bg-layer-1);flex:none}
       .dg-commit-detail-subject{font-size:13px;font-weight:600;overflow-wrap:anywhere}
       .dg-commit-detail-meta{color:var(--dsw-alias-label-secondary);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .dg-commit-files{padding:2px 0 6px 22px;border-left:1px solid var(--dsw-alias-border-l1);margin-left:18px}
+      .dg-commit-file{display:flex;align-items:center;gap:7px;width:100%;border:0;background:transparent;color:inherit;font:inherit;text-align:left;padding:3px 8px;cursor:pointer}
+      .dg-commit-file:hover,.dg-commit-file[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}
+      .dg-commit-file:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+      .dg-commit-file-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
       .dg-file-block{border-bottom:0.5px solid var(--dsw-alias-border-l1)}
       .dg-file-block-head{display:flex;align-items:center;gap:8px;padding:6px 12px;position:sticky;top:0;z-index:1;background:var(--dsw-alias-bg-layer-1);border-bottom:0.5px solid var(--dsw-alias-border-l1);font-family:inherit}
       .dg-file-block-path{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:12px}
@@ -610,9 +631,17 @@ window.__ModuleLoader__.load({
       }
     }
 
+    /** Persisted tree/list choice for the change groups. */
+    function readTreeView() {
+      return readLocal(TREE_VIEW_KEY) !== '0'
+    }
+
+    function writeTreeView(value) {
+      writeLocal(TREE_VIEW_KEY, value ? '1' : '0')
+    }
+
     /** Persisted model override for AI commit messages; null means "default". */
-    function readModelSelection() {
-      const raw = readLocal(MODEL_KEY)
+    function readModelSelection() {      const raw = readLocal(MODEL_KEY)
       if (raw === null || raw === '') return null
       try {
         const parsed = JSON.parse(raw)
@@ -872,6 +901,10 @@ window.__ModuleLoader__.load({
     const FolderIcon = makeIcon([
       h('path', { key: 'a', d: 'M2.4 4.4h4l1.3 1.6h5.9v6.6h-11.2z' }),
     ])
+    const TreeIcon = makeIcon([
+      h('path', { key: 'a', d: 'M3 3v10M3 6h4M3 11h4' }),
+      h('path', { key: 'b', d: 'M7 4.5h6M7 9.5h6' }),
+    ])
     const WarningIcon = makeIcon([
       h('path', { key: 'a', d: 'M8 2.4l6 11.2H2z' }),
       h('path', { key: 'b', d: 'M8 6.2v3.4M8 11.3v.1' }),
@@ -1024,11 +1057,11 @@ window.__ModuleLoader__.load({
 
     function DiffPane({
       t, selected, bothGroups, snapshot, diff, diffPhase, diffError,
-      busy, onSelectGroup, onStage, onUnstage, onRefresh, onBack,
+      busy, onSelectGroup, onStage, onUnstage, onRefresh, onBack, commitFile = null,
     }) {
       const isCommit = selected !== null && selected.kind === 'commit'
       const title = isCommit
-        ? t('commitDetails', { hash: selected.hash.slice(0, 7) })
+        ? (commitFile !== null ? commitFile.path : t('commitDetails', { hash: selected.hash.slice(0, 7) }))
         : selected !== null ? selected.path : t('selectFile')
       const summary = useMemo(() => summarizePatch(diff), [diff])
       const canToggle = !isCommit && bothGroups.unstaged && bothGroups.staged
@@ -1039,7 +1072,7 @@ window.__ModuleLoader__.load({
           bodyRef.current.scrollTop = 0
           bodyRef.current.scrollLeft = 0
         }
-      }, [selected])
+      }, [selected, commitFile])
 
       let body
       if (selected === null) {
@@ -1058,6 +1091,12 @@ window.__ModuleLoader__.load({
             h(Button, { variant: 'ghost', onClick: onRefresh }, t('retry'))))
       } else if (diff === null) {
         body = h(EmptyState, { icon: h(Spinner, { size: 20 }), title: t('loading') })
+      } else if (isCommit && commitFile === null) {
+        body = h(EmptyState, {
+          icon: h(FileIcon, { size: 20 }),
+          title: t('selectCommitFile'),
+          text: t('selectCommitFileHint'),
+        })
       } else {
         const files = Array.isArray(diff.files) ? diff.files : []
         body = h('div', null,
@@ -1139,9 +1178,9 @@ window.__ModuleLoader__.load({
     //#region lists
 
     function FileRow({
-      t, entry, group, active, onSelect, onStage, onUnstage, onDiscard, busy, depth = 0,
+      t, entry, group, active, onSelect, onStage, onUnstage, onDiscard, busy, depth = 0, showDir = false,
     }) {
-      const { base } = splitPath(entry.path)
+      const { dir, base } = splitPath(entry.path)
       return h('div', { className: 'dg-file', 'data-active': active ? 'true' : 'false' },
         h('button', {
           type: 'button',
@@ -1151,7 +1190,9 @@ window.__ModuleLoader__.load({
           title: entry.path,
         },
         h(StatusBadge, { status: entry.status, title: t(statusKey(entry.status)) }),
-        h('span', { className: 'dg-file-name' }, base),
+        h('span', { className: 'dg-file-name' },
+          showDir && dir !== '' ? h('span', { className: 'dg-dir' }, dir) : null,
+          base),
         entry.originalPath !== null && entry.originalPath !== undefined && entry.originalPath !== entry.path
           ? h('span', { className: 'dg-file-orig', title: entry.originalPath }, `← ${entry.originalPath}`)
           : null),
@@ -1179,10 +1220,11 @@ window.__ModuleLoader__.load({
     function FileSection({
       t, title, entries, open, onToggle, emptyText, actionIcon, actionTitle, onAction,
       group, selected, onSelect, onStage, onUnstage, onDiscard, busy, collapsedDirs, onToggleDir,
+      treeView = true, viewToggle,
     }) {
       const tree = buildFileTree(entries)
       const rows = []
-      const renderFile = (entry, depth) => {
+      const renderFile = (entry, depth, showDir = false) => {
         rows.push(h(FileRow, {
           key: `file:${group}:${entry.path}`,
           t,
@@ -1195,6 +1237,7 @@ window.__ModuleLoader__.load({
           onDiscard,
           busy,
           depth,
+          showDir,
         }))
       }
       const renderDir = (node, depth) => {
@@ -1223,8 +1266,12 @@ window.__ModuleLoader__.load({
           for (const entry of display.files) renderFile(entry, depth + 1)
         }
       }
-      for (const child of tree.dirs.values()) renderDir(child, 0)
-      for (const entry of tree.files) renderFile(entry, 0)
+      if (treeView) {
+        for (const child of tree.dirs.values()) renderDir(child, 0)
+        for (const entry of tree.files) renderFile(entry, 0)
+      } else {
+        for (const entry of entries) renderFile(entry, 0, true)
+      }
       return h('section', { className: 'dg-section' },
         h('div', { className: 'dg-section-head' },
           h('button', {
@@ -1236,6 +1283,7 @@ window.__ModuleLoader__.load({
           open ? h(ChevronDown, { size: 11 }) : h(ChevronRight, { size: 11 }),
           h('span', { className: 'dg-section-title' }, title),
           h('span', { className: 'dg-count' }, entries.length)),
+          viewToggle !== undefined ? viewToggle : null,
           actionIcon !== undefined
             ? h(IconButton, {
               title: actionTitle,
@@ -1251,8 +1299,67 @@ window.__ModuleLoader__.load({
     }
 
     function HistorySection({
-      t, commits, open, onToggle, selected, onSelect,
+      t, commits, open, onToggle, selected, onSelect, diff, commitFile, onSelectCommitFile,
     }) {
+      const rows = []
+      if (open) {
+        if (commits.length === 0) {
+          rows.push(h('div', { key: 'empty', className: 'dg-section-empty' }, t('noCommits')))
+        } else {
+          for (const commitEntry of commits) {
+            const isSelected = selected !== null && selected.kind === 'commit' && selected.hash === commitEntry.hash
+            const changes = isSelected && diff !== null && Array.isArray(diff.changes) ? diff.changes : []
+            const fileRows = []
+            if (isSelected && diff === null) {
+              fileRows.push(h('div', { key: 'loading', className: 'dg-section-empty' }, t('loadingChangedFiles')))
+            } else if (isSelected && diff !== null && Array.isArray(diff.changes)) {
+              if (changes.length === 0) {
+                fileRows.push(h('div', { key: 'empty', className: 'dg-section-empty' }, t('noChangedFiles')))
+              } else {
+                for (const change of changes) {
+                  const { dir, base } = splitPath(change.path)
+                  const active = commitFile !== null
+                    && commitFile.path === change.path
+                    && (commitFile.originalPath ?? null) === (change.originalPath ?? null)
+                  fileRows.push(h('button', {
+                    key: `${change.status}:${change.path}`,
+                    type: 'button',
+                    className: 'dg-commit-file',
+                    'data-active': active ? 'true' : 'false',
+                    title: change.path,
+                    onClick: () => onSelectCommitFile(change),
+                  },
+                  h(StatusBadge, { status: change.status, title: t(statusKey(change.status)) }),
+                  h('span', { className: 'dg-commit-file-path' },
+                    dir !== '' ? h('span', { className: 'dg-dir' }, dir) : null,
+                    base),
+                  change.originalPath !== null && change.originalPath !== undefined && change.originalPath !== change.path
+                    ? h('span', { className: 'dg-file-orig', title: change.originalPath }, `← ${change.originalPath}`)
+                    : null))
+                }
+              }
+            }
+            rows.push(h('div', {
+              key: commitEntry.hash,
+              className: 'dg-commit-row',
+              'data-active': isSelected ? 'true' : 'false',
+            },
+            h('button', {
+              type: 'button',
+              className: 'dg-commit-row-button',
+              onClick: () => onSelect(commitEntry),
+            },
+            h('span', { className: 'dg-commit-line' },
+              h('span', { className: 'dg-commit-caret' },
+                isSelected ? h(ChevronDown, { size: 10 }) : h(ChevronRight, { size: 10 })),
+              h('span', { className: 'dg-hash' }, commitEntry.short),
+              h('span', { className: 'dg-subject', title: commitEntry.subject }, commitEntry.subject)),
+            h('span', { className: 'dg-commit-meta' },
+              `${commitEntry.author} · ${relativeTime(commitEntry.date, t)}`)),
+            fileRows.length > 0 ? h('div', { className: 'dg-commit-files' }, fileRows) : null))
+          }
+        }
+      }
       return h('section', { className: 'dg-section' },
         h('div', { className: 'dg-section-head' },
           h('button', {
@@ -1264,25 +1371,7 @@ window.__ModuleLoader__.load({
           open ? h(ChevronDown, { size: 11 }) : h(ChevronRight, { size: 11 }),
           h('span', { className: 'dg-section-title' }, t('history')),
           h('span', { className: 'dg-count' }, commits.length))),
-        open
-          ? (commits.length === 0
-            ? h('div', { className: 'dg-section-empty' }, t('noCommits'))
-            : commits.map((commitEntry) => h('button', {
-              key: commitEntry.hash,
-              type: 'button',
-              className: 'dg-commit-row-button',
-              'data-active': selected !== null && selected.kind === 'commit' && selected.hash === commitEntry.hash ? 'true' : 'false',
-              style: selected !== null && selected.kind === 'commit' && selected.hash === commitEntry.hash
-                ? { background: 'var(--dsw-alias-bg-layer-2)' }
-                : undefined,
-              onClick: () => onSelect(commitEntry),
-            },
-            h('span', { className: 'dg-commit-line' },
-              h('span', { className: 'dg-hash' }, commitEntry.short),
-              h('span', { className: 'dg-subject', title: commitEntry.subject }, commitEntry.subject)),
-            h('span', { className: 'dg-commit-meta' },
-              `${commitEntry.author} · ${relativeTime(commitEntry.date, t)}`))))
-          : null)
+        open ? rows : null)
     }
 
     //#endregion
@@ -1726,6 +1815,7 @@ window.__ModuleLoader__.load({
       const [notice, setNotice] = useState(null)
       const [busy, setBusy] = useState(null)
       const [selected, setSelected] = useState(null)
+      const [commitFile, setCommitFile] = useState(null)
       const [diff, setDiff] = useState(null)
       const [diffPhase, setDiffPhase] = useState('idle')
       const [diffError, setDiffError] = useState(null)
@@ -1738,6 +1828,7 @@ window.__ModuleLoader__.load({
       const [discardTargets, setDiscardTargets] = useState(null)
       const [openSections, setOpenSections] = useState({ conflicts: true, staged: true, changes: true, history: true })
       const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
+      const [treeView, setTreeView] = useState(readTreeView)
       const [modelCatalog, setModelCatalog] = useState(null)
       const [modelSelection, setModelSelection] = useState(readModelSelection)
       const [modelError, setModelError] = useState(null)
@@ -1884,6 +1975,7 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         setSnapshot(null)
         setSelected(null)
+        setCommitFile(null)
         setDiff(null)
         setDiffPhase('idle')
         setDiffError(null)
@@ -1911,6 +2003,7 @@ window.__ModuleLoader__.load({
       useEffect(() => {
         setSnapshot(null)
         setSelected(null)
+        setCommitFile(null)
         setDiff(null)
         setDiffPhase('idle')
         setDiffError(null)
@@ -1994,7 +2087,13 @@ window.__ModuleLoader__.load({
         setDiffPhase('loading')
         setDiffError(null)
         const request = selected.kind === 'commit'
-          ? call('show', { cwd: activeRepoPath, hash: selected.hash })
+          ? call('show', {
+            cwd: activeRepoPath,
+            hash: selected.hash,
+            ...(commitFile !== null
+              ? { path: commitFile.path, originalPath: commitFile.originalPath ?? null }
+              : {}),
+          })
           : call('diff', {
             cwd: activeRepoPath,
             path: selected.path,
@@ -2010,7 +2109,7 @@ window.__ModuleLoader__.load({
           setDiffError(failure?.message ?? String(failure))
           setDiffPhase('error')
         })
-      }, [selected, activeRepoPath, call, diffNonce])
+      }, [selected, activeRepoPath, call, diffNonce, commitFile])
 
       // 5. Keep the selection on the same file when it moves between groups.
       useEffect(() => {
@@ -2038,6 +2137,7 @@ window.__ModuleLoader__.load({
           }
         }
         setSelected(null)
+        setCommitFile(null)
       }, [snapshot, selected])
 
       useEffect(() => {
@@ -2199,6 +2299,7 @@ window.__ModuleLoader__.load({
       }, [activeRepoPath, call, deleteTarget, loadState, run, t])
 
       const selectFile = useCallback((entry, group) => {
+        setCommitFile(null)
         setSelected({
           kind: 'file',
           group,
@@ -2209,7 +2310,21 @@ window.__ModuleLoader__.load({
       }, [])
 
       const selectCommit = useCallback((entry) => {
+        if (selected !== null && selected.kind === 'commit' && selected.hash === entry.hash) {
+          setSelected(null)
+          setCommitFile(null)
+          return
+        }
+        setCommitFile(null)
         setSelected({ kind: 'commit', hash: entry.hash, short: entry.short })
+      }, [selected])
+
+      const selectCommitFile = useCallback((change) => {
+        setCommitFile({
+          path: change.path,
+          originalPath: change.originalPath ?? null,
+          status: change.status,
+        })
       }, [])
 
       const selectGroup = useCallback((group) => {
@@ -2259,6 +2374,7 @@ window.__ModuleLoader__.load({
         )
         if (value !== undefined && selected !== null && selected.kind === 'file' && paths.includes(selected.path)) {
           setSelected(null)
+          setCommitFile(null)
         }
       }, [activeRepoPath, call, discardTargets, run, selected, t])
 
@@ -2323,7 +2439,10 @@ window.__ModuleLoader__.load({
           () => call('checkout', { cwd: activeRepoPath, branch }),
           t('branchSwitched', { branch }),
         )
-        if (value !== undefined) setSelected(null)
+        if (value !== undefined) {
+          setSelected(null)
+          setCommitFile(null)
+        }
       }, [activeRepoPath, call, run, t])
 
       const makeBranch = useCallback(async () => {
@@ -2339,7 +2458,10 @@ window.__ModuleLoader__.load({
           () => call('createBranch', { cwd: activeRepoPath, branch: name }),
           t('branchCreated', { branch: name }),
         )
-        if (value !== undefined) setSelected(null)
+        if (value !== undefined) {
+          setSelected(null)
+          setCommitFile(null)
+        }
       }, [activeRepoPath, branchDraft, call, run, t])
 
       const sync = useCallback((endpoint, label, success) => run(
@@ -2386,6 +2508,14 @@ window.__ModuleLoader__.load({
           const next = new Set(current)
           if (next.has(key)) next.delete(key)
           else next.add(key)
+          return next
+        })
+      }, [])
+
+      const toggleTreeView = useCallback(() => {
+        setTreeView((current) => {
+          const next = !current
+          writeTreeView(next)
           return next
         })
       }, [])
@@ -2795,6 +2925,12 @@ window.__ModuleLoader__.load({
                 open: openSections.conflicts,
                 onToggle: () => toggleSection('conflicts'),
                 emptyText: t('noConflicts'),
+                viewToggle: h(IconButton, {
+                  title: treeView ? t('treeView') : t('listView'),
+                  onClick: toggleTreeView,
+                  'aria-pressed': treeView,
+                  disabled: Boolean(busy),
+                }, treeView ? h(TreeIcon, { size: 12 }) : h(ListIcon, { size: 12 })),
                 group: 'conflicts',
                 selected,
                 onSelect: selectFile,
@@ -2804,6 +2940,7 @@ window.__ModuleLoader__.load({
                 busy,
                 collapsedDirs,
                 onToggleDir: toggleDir,
+                treeView,
               }),
               h(FileSection, {
                 t,
@@ -2824,6 +2961,7 @@ window.__ModuleLoader__.load({
                 busy,
                 collapsedDirs,
                 onToggleDir: toggleDir,
+                treeView,
               }),
               h(FileSection, {
                 t,
@@ -2844,6 +2982,7 @@ window.__ModuleLoader__.load({
                 busy,
                 collapsedDirs,
                 onToggleDir: toggleDir,
+                treeView,
               }),
               h(HistorySection, {
                 t,
@@ -2852,6 +2991,9 @@ window.__ModuleLoader__.load({
                 onToggle: () => toggleSection('history'),
                 selected,
                 onSelect: selectCommit,
+                diff,
+                commitFile,
+                onSelectCommitFile: selectCommitFile,
               }))),
           h(DiffPane, {
             t,
@@ -2866,7 +3008,11 @@ window.__ModuleLoader__.load({
             onStage: stagePaths,
             onUnstage: unstagePaths,
             onRefresh: refreshAll,
-            onBack: () => setSelected(null),
+            onBack: () => {
+              setSelected(null)
+              setCommitFile(null)
+            },
+            commitFile,
           }))
       }
 

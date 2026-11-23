@@ -262,9 +262,14 @@ async function main() {
       assert.equal(state.commits[0].subject, 'add four')
       const shown = await readShow(git, repo, { hash: result.hash })
       assert.equal(shown.commit.subject, 'add four')
-      assert.equal(shown.files.length, 2)
-      assert.ok(shown.files.some((file) => file.path === 'alpha.txt'))
-      assert.ok(shown.files.some((file) => file.path === 'renamed file.txt'))
+      assert.equal(shown.files.length, 0)
+      assert.equal(shown.changes.length, 2)
+      assert.ok(shown.changes.some((change) => change.path === 'alpha.txt' && change.status === 'M'))
+      assert.ok(shown.changes.some((change) => change.path === 'renamed file.txt'))
+      const single = await readShow(git, repo, { hash: result.hash, path: 'alpha.txt' })
+      assert.equal(single.files.length, 1)
+      assert.equal(single.files[0].path, 'alpha.txt')
+      assert.equal(single.changes.length, 2)
     })
 
     await checkAsync('stage and unstage a rename with both paths', async () => {

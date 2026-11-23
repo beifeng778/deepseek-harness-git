@@ -26,11 +26,11 @@ The plugin is a bundle with two halves:
 | Workspace | Lists the profile's registered Workspaces, remembers the last one, and scans it for repositories. |
 | Repository discovery | Walks up to four levels below the Workspace root, recognises `.git` directories and worktree files, and skips build and dependency directories. |
 | Repository selection | A **Manage repositories** dialog lists every detected repository with a checkbox; the choice is persisted per Workspace, and the header's repository chip switches the active one. |
-| Changes | Merge, staged, and working-tree groups with status letters (`M`, `A`, `D`, `R`, `C`, `T`, `U`, `!`), original paths for renames, a collapsible directory tree with single-child folder compaction, and per-row stage/unstage/discard. |
+| Changes | Merge, staged, and working-tree groups with status letters (`M`, `A`, `D`, `R`, `C`, `T`, `U`, `!`), original paths for renames, a tree/list toggle, a collapsible directory tree with single-child folder compaction, and per-row stage/unstage/discard. |
 | Commit | Message box with a per-repository draft, `Ctrl`/`Cmd`+`Enter`, amend, staged count, stage-all, and AI message generation from the changes. |
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
-| History | The 40 most recent commits; selecting one shows its metadata and patch. |
+| History | The 40 most recent commits; selecting one shows its metadata, a collapsible changed-file list with statuses, and the patch. Selecting a changed file focuses that file's patch. |
 | Branches | Local branch menu with upstream, current marker, switch, create, delete, **Publish branch**, and **Set upstream**. |
 | Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
 | Remotes | **Manage remotes** adds or removes remote repositories, lists their URLs, and fetches all remotes. |
@@ -97,16 +97,19 @@ both fields together:
    load. The choice is remembered per Workspace.
 4. Use the repository chip to switch the active repository. The staged and
    working-tree lists are a collapsible directory tree; click a folder to
-   expand or collapse it. Review a file, stage it, write a message, and commit.
-   The **Generate** button in the commit box asks the selected model for a
-   message based on the staged changes (or the working-tree changes when
-   nothing is staged). The **AI model** row defaults to the new-session model;
-   choose another model to pin it for this browser.
+   expand or collapse it, or use the tree/list button in the **Merge changes**
+   section header to switch to a flat list. Review a file, stage it, write a
+   message, and commit. The
+   **Generate** button in the commit box asks the selected model for a message
+   based on the staged changes (or the working-tree changes when nothing is
+   staged). The **AI model** row defaults to the new-session model; choose
+   another model to pin it for this browser.
 5. Switch branches from the branch chip. A branch without an upstream offers
    **Publish branch** (push it and set the upstream) and **Set upstream** (track
    an already-fetched remote branch). For a local repository with no remote,
    open **Manage remotes** first, add the remote, fetch it, then set the
-   upstream. Sync from the toolbar.
+   upstream. Sync from the toolbar. Selecting a commit in **History** lists its
+   changed files; click one to focus its patch.
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and

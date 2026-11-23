@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0
+
+- Added a tree/list toggle for the change groups; the choice is remembered in the browser.
+- Commit details now list the changed files with their statuses; selecting one focuses that file's patch.
+
 ## 1.1.0
 
 - Staged, unstaged, and conflicted changes now render as a collapsible directory tree, with single-child folders compacted and expansion state kept per section.
