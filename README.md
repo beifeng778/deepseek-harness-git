@@ -26,7 +26,7 @@ The plugin is a bundle with two halves:
 | Workspace | Lists the profile's registered Workspaces, remembers the last one, and scans it for repositories. |
 | Repository discovery | Walks up to four levels below the Workspace root, recognises `.git` directories and worktree files, and skips build and dependency directories. |
 | Repository selection | A **Manage repositories** dialog lists every detected repository with a checkbox; the choice is persisted per Workspace, and the header's repository chip switches the active one. |
-| Changes | Merge, staged, and working-tree groups with status letters (`M`, `A`, `D`, `R`, `C`, `T`, `U`, `!`), original paths for renames, and per-row stage/unstage/discard. |
+| Changes | Merge, staged, and working-tree groups with status letters (`M`, `A`, `D`, `R`, `C`, `T`, `U`, `!`), original paths for renames, a collapsible directory tree with single-child folder compaction, and per-row stage/unstage/discard. |
 | Commit | Message box with a per-repository draft, `Ctrl`/`Cmd`+`Enter`, amend, staged count, stage-all, and AI message generation from the changes. |
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
@@ -95,11 +95,13 @@ both fields together:
 3. Open **Manage repositories** (the list button in the toolbar, or the
    repository chip's menu) and uncheck the repositories this page should not
    load. The choice is remembered per Workspace.
-4. Use the repository chip to switch the active repository, review a file, stage
-   it, write a message, and commit. The **Generate** button in the commit box
-   asks the selected model for a message based on the staged changes (or the
-   working-tree changes when nothing is staged). The **AI model** row defaults to
-   the new-session model; choose another model to pin it for this browser.
+4. Use the repository chip to switch the active repository. The staged and
+   working-tree lists are a collapsible directory tree; click a folder to
+   expand or collapse it. Review a file, stage it, write a message, and commit.
+   The **Generate** button in the commit box asks the selected model for a
+   message based on the staged changes (or the working-tree changes when
+   nothing is staged). The **AI model** row defaults to the new-session model;
+   choose another model to pin it for this browser.
 5. Switch branches from the branch chip. A branch without an upstream offers
    **Publish branch** (push it and set the upstream) and **Set upstream** (track
    an already-fetched remote branch). For a local repository with no remote,

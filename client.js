@@ -454,6 +454,12 @@ window.__ModuleLoader__.load({
       .dg-section-title{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
       .dg-count{display:inline-flex;align-items:center;justify-content:center;min-width:17px;height:16px;padding:0 5px;border-radius:999px;background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-secondary);font-size:10.5px;font-weight:600;letter-spacing:0;font-variant-numeric:tabular-nums}
       .dg-section-empty{padding:4px 12px 10px;color:var(--dsw-alias-label-secondary);font-size:11.5px}
+      .dg-folder{display:flex;align-items:center;padding-right:6px}
+      .dg-folder:hover{background:var(--dsw-alias-bg-layer-2)}
+      .dg-folder-main{display:flex;align-items:center;gap:5px;flex:1;min-width:0;border:0;background:transparent;color:var(--dsw-alias-label-secondary);font:inherit;text-align:left;padding:3px 6px 3px 0;cursor:pointer}
+      .dg-folder-main:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-2px}
+      .dg-folder-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--dsw-alias-label-primary);font-size:12px}
+      .dg-folder-count{margin-left:auto;color:var(--dsw-alias-label-secondary);font-size:10.5px;font-variant-numeric:tabular-nums;flex:none}
       .dg-file{display:flex;align-items:center;gap:1px;padding-right:6px}
       .dg-file[data-active="true"]{background:var(--dsw-alias-bg-layer-2)}
       .dg-file:hover{background:var(--dsw-alias-bg-layer-2)}
@@ -689,6 +695,61 @@ window.__ModuleLoader__.load({
       return index === -1
         ? { dir: '', base: text }
         : { dir: text.slice(0, index + 1), base: text.slice(index + 1) }
+    }
+
+    /** Group flat Git paths into a directory tree, sorted like a file explorer. */
+    function buildFileTree(entries) {
+      const root = { name: '', path: '', dirs: new Map(), files: [], count: 0 }
+      for (const entry of entries) {
+        const parts = String(entry.path ?? '').replace(/\\/g, '/').split('/').filter((part) => part !== '')
+        if (parts.length === 0) continue
+        let node = root
+        for (let index = 0; index < parts.length - 1; index += 1) {
+          const name = parts[index]
+          let child = node.dirs.get(name)
+          if (child === undefined) {
+            child = {
+              name,
+              path: parts.slice(0, index + 1).join('/'),
+              dirs: new Map(),
+              files: [],
+              count: 0,
+            }
+            node.dirs.set(name, child)
+          }
+          node = child
+        }
+        node.files.push(entry)
+      }
+      const sortNode = (node) => {
+        node.dirs = new Map([...node.dirs.entries()].sort(([left], [right]) => (
+          left.localeCompare(right, undefined, { sensitivity: 'base' })
+        )))
+        node.files.sort((left, right) => (
+          left.path.localeCompare(right.path, undefined, { sensitivity: 'base' })
+        ))
+        for (const child of node.dirs.values()) sortNode(child)
+      }
+      const countNode = (node) => {
+        node.count = node.files.length
+        for (const child of node.dirs.values()) node.count += countNode(child)
+        return node.count
+      }
+      sortNode(root)
+      countNode(root)
+      return root
+    }
+
+    /** Collapse single-child directory chains, as VS Code does in its explorer. */
+    function compactFileDir(node) {
+      let current = node
+      let name = node.name
+      while (current.files.length === 0 && current.dirs.size === 1) {
+        const child = current.dirs.values().next().value
+        name = `${name}/${child.name}`
+        current = child
+      }
+      return { node: current, name }
     }
 
     /** A rename touches two pathspecs; every mutation must carry both. */
@@ -1078,20 +1139,19 @@ window.__ModuleLoader__.load({
     //#region lists
 
     function FileRow({
-      t, entry, group, active, onSelect, onStage, onUnstage, onDiscard, busy,
+      t, entry, group, active, onSelect, onStage, onUnstage, onDiscard, busy, depth = 0,
     }) {
-      const { dir, base } = splitPath(entry.path)
+      const { base } = splitPath(entry.path)
       return h('div', { className: 'dg-file', 'data-active': active ? 'true' : 'false' },
         h('button', {
           type: 'button',
           className: 'dg-file-main',
+          style: { paddingLeft: `${12 + depth * 14}px` },
           onClick: () => onSelect(entry, group),
           title: entry.path,
         },
         h(StatusBadge, { status: entry.status, title: t(statusKey(entry.status)) }),
-        h('span', { className: 'dg-file-name' },
-          dir !== '' ? h('span', { className: 'dg-dir' }, dir) : null,
-          base),
+        h('span', { className: 'dg-file-name' }, base),
         entry.originalPath !== null && entry.originalPath !== undefined && entry.originalPath !== entry.path
           ? h('span', { className: 'dg-file-orig', title: entry.originalPath }, `← ${entry.originalPath}`)
           : null),
@@ -1118,8 +1178,53 @@ window.__ModuleLoader__.load({
 
     function FileSection({
       t, title, entries, open, onToggle, emptyText, actionIcon, actionTitle, onAction,
-      group, selected, onSelect, onStage, onUnstage, onDiscard, busy,
+      group, selected, onSelect, onStage, onUnstage, onDiscard, busy, collapsedDirs, onToggleDir,
     }) {
+      const tree = buildFileTree(entries)
+      const rows = []
+      const renderFile = (entry, depth) => {
+        rows.push(h(FileRow, {
+          key: `file:${group}:${entry.path}`,
+          t,
+          entry,
+          group,
+          active: selected !== null && selected.kind === 'file' && selected.group === group && selected.path === entry.path,
+          onSelect,
+          onStage,
+          onUnstage,
+          onDiscard,
+          busy,
+          depth,
+        }))
+      }
+      const renderDir = (node, depth) => {
+        const compacted = compactFileDir(node)
+        const display = compacted.node
+        const key = `${group}:${display.path}`
+        const collapsed = collapsedDirs.has(key)
+        rows.push(h('div', {
+          key: `dir:${key}`,
+          className: 'dg-folder',
+          style: { paddingLeft: `${12 + depth * 14}px` },
+        },
+        h('button', {
+          type: 'button',
+          className: 'dg-folder-main',
+          'aria-expanded': !collapsed,
+          title: display.path,
+          onClick: () => onToggleDir(key),
+        },
+        collapsed ? h(ChevronRight, { size: 10 }) : h(ChevronDown, { size: 10 }),
+        h(FolderIcon, { size: 12 }),
+        h('span', { className: 'dg-folder-name' }, compacted.name),
+        h('span', { className: 'dg-folder-count' }, display.count))))
+        if (!collapsed) {
+          for (const child of display.dirs.values()) renderDir(child, depth + 1)
+          for (const entry of display.files) renderFile(entry, depth + 1)
+        }
+      }
+      for (const child of tree.dirs.values()) renderDir(child, 0)
+      for (const entry of tree.files) renderFile(entry, 0)
       return h('section', { className: 'dg-section' },
         h('div', { className: 'dg-section-head' },
           h('button', {
@@ -1139,20 +1244,9 @@ window.__ModuleLoader__.load({
             }, actionIcon)
             : null),
         open
-          ? (entries.length === 0
+          ? (rows.length === 0
             ? h('div', { className: 'dg-section-empty' }, emptyText)
-            : entries.map((entry) => h(FileRow, {
-              key: `${group}:${entry.path}`,
-              t,
-              entry,
-              group,
-              active: selected !== null && selected.kind === 'file' && selected.group === group && selected.path === entry.path,
-              onSelect,
-              onStage,
-              onUnstage,
-              onDiscard,
-              busy,
-            })))
+            : rows)
           : null)
     }
 
@@ -1643,6 +1737,7 @@ window.__ModuleLoader__.load({
       const [branchDraft, setBranchDraft] = useState('')
       const [discardTargets, setDiscardTargets] = useState(null)
       const [openSections, setOpenSections] = useState({ conflicts: true, staged: true, changes: true, history: true })
+      const [collapsedDirs, setCollapsedDirs] = useState(() => new Set())
       const [modelCatalog, setModelCatalog] = useState(null)
       const [modelSelection, setModelSelection] = useState(readModelSelection)
       const [modelError, setModelError] = useState(null)
@@ -1795,6 +1890,7 @@ window.__ModuleLoader__.load({
         setAmend(false)
         setMenu(null)
         setDiscardTargets(null)
+        setCollapsedDirs(new Set())
         setManagerOpen(false)
         setDiscovered([])
         setScanPhase('idle')
@@ -1821,6 +1917,7 @@ window.__ModuleLoader__.load({
         setAmend(false)
         setMenu(null)
         setDiscardTargets(null)
+        setCollapsedDirs(new Set())
         messageSeq.current += 1
         setGeneratingMessage(false)
         if (!activeRepoPath) {
@@ -2284,6 +2381,15 @@ window.__ModuleLoader__.load({
         setOpenSections((current) => ({ ...current, [key]: !current[key] }))
       }, [])
 
+      const toggleDir = useCallback((key) => {
+        setCollapsedDirs((current) => {
+          const next = new Set(current)
+          if (next.has(key)) next.delete(key)
+          else next.add(key)
+          return next
+        })
+      }, [])
+
       const onMessage = useCallback((value) => {
         setMessage(value)
         if (activeRepoPath) writeLocal(DRAFT_PREFIX + activeRepoPath, value)
@@ -2696,6 +2802,8 @@ window.__ModuleLoader__.load({
                 onUnstage: unstagePaths,
                 onDiscard: askDiscard,
                 busy,
+                collapsedDirs,
+                onToggleDir: toggleDir,
               }),
               h(FileSection, {
                 t,
@@ -2714,6 +2822,8 @@ window.__ModuleLoader__.load({
                 onUnstage: unstagePaths,
                 onDiscard: askDiscard,
                 busy,
+                collapsedDirs,
+                onToggleDir: toggleDir,
               }),
               h(FileSection, {
                 t,
@@ -2732,6 +2842,8 @@ window.__ModuleLoader__.load({
                 onUnstage: unstagePaths,
                 onDiscard: askDiscard,
                 busy,
+                collapsedDirs,
+                onToggleDir: toggleDir,
               }),
               h(HistorySection, {
                 t,

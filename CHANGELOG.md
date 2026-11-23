@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.0
+
+- Staged, unstaged, and conflicted changes now render as a collapsible directory tree, with single-child folders compacted and expansion state kept per section.
+
 ## 1.0.1
 
 - CI: publish future releases through npm trusted publishing (OIDC).
