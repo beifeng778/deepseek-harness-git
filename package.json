@@ -1,6 +1,6 @@
 {
   "name": "deepseek-harness-git",
-  "version": "1.2.0",
+  "version": "1.2.1",
   "type": "module",
   "description": "Git source-control panel for the DeepSeek Harness Web GUI: repository discovery, changes, staging, diffs, AI commit messages, branches, and sync.",
   "main": "index.js",

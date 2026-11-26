@@ -7,6 +7,7 @@
  */
 
 import assert from 'node:assert/strict'
+import { readFile } from 'node:fs/promises'
 import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 
@@ -119,6 +120,16 @@ assert.equal(typeof face.t, 'function')
 assert.equal(typeof face.call, 'function')
 assert.equal(face.t('panelTitle'), 'Git')
 assert.equal(face.t('filesCount', { n: 3 }), '3 files')
+
+// Regression: the commit box's amend row and the history rows once shared
+// `.dg-commit-row`, so the history rule's `display:block` flattened the amend
+// row and ran its label straight into the staged count.
+const source = await readFile(new URL('../client.js', import.meta.url), 'utf8')
+const historyRowRules = [...source.matchAll(/\.dg-commit-row\{([^}]*)\}/g)].map((match) => match[1])
+assert.equal(historyRowRules.length, 1, '.dg-commit-row must style history rows only')
+assert.match(historyRowRules[0], /display:block/, 'history rows stack their button and file list')
+assert.match(source, /\.dg-commit-options\{[^}]*display:flex/, 'the amend row needs its own flex row')
+assert.ok(source.includes("className: 'dg-commit-options'"), 'the amend row must use the dedicated class')
 
 for (const { cleanup } of cleanups) {
   if (typeof cleanup === 'function') cleanup()

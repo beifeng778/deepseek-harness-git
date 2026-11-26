@@ -175,6 +175,13 @@ window.__ModuleLoader__.load({
       noConflicts: 'No conflicts.',
       noChanges: 'Working tree clean.',
       noCommits: 'No commits yet.',
+      filterAuthor: 'Filter by author',
+      filterAuthorHint: 'Type a committer name or email to narrow the recent commits.',
+      filteredCount: 'Matched {n} of the {total} loaded commits',
+      chooseAuthor: 'Choose a committer',
+      noMatchingAuthors: 'No committer matches this text.',
+      clearFilter: 'Clear author filter',
+      noAuthorCommits: 'No commit by this author in the loaded history.',
       markResolved: 'Mark resolved',
       expand: 'Expand',
       collapse: 'Collapse',
@@ -355,6 +362,13 @@ window.__ModuleLoader__.load({
       noConflicts: '没有冲突。',
       noChanges: '工作区干净。',
       noCommits: '暂无提交。',
+      filterAuthor: '按提交人筛选',
+      filterAuthorHint: '输入提交人姓名或邮箱，缩小最近提交的范围。',
+      filteredCount: '已加载 {total} 个提交，匹配 {n} 个',
+      chooseAuthor: '选择提交人',
+      noMatchingAuthors: '没有匹配的提交人。',
+      clearFilter: '清除提交人筛选',
+      noAuthorCommits: '已加载的最近提交中没有该提交人的记录。',
       markResolved: '标记为已解决',
       expand: '展开',
       collapse: '收起',
@@ -454,7 +468,7 @@ window.__ModuleLoader__.load({
       .dg-model-select{flex:1;min-width:0;height:24px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-primary);font:inherit;font-size:11.5px;padding:0 5px}
       .dg-model-select:focus{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px}
       .dg-model-select:disabled{opacity:.55;cursor:not-allowed}
-      .dg-commit-row{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px}
+      .dg-commit-options{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:20px;flex-wrap:wrap}
       .dg-check{display:inline-flex;align-items:center;gap:5px;color:var(--dsw-alias-label-secondary);font-size:11.5px;cursor:pointer;user-select:none}
       .dg-check input{margin:0;accent-color:var(--dsw-alias-brand-primary)}
       .dg-commit-count{color:var(--dsw-alias-label-secondary);font-size:11.5px;font-variant-numeric:tabular-nums}
@@ -499,6 +513,26 @@ window.__ModuleLoader__.load({
       .dg-hash{flex:none;color:var(--dsw-alias-brand-primary);font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-size:11px}
       .dg-subject{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12.5px}
       .dg-commit-meta{color:var(--dsw-alias-label-secondary);font-size:10.5px;padding-left:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      .dg-history-filter{display:flex;flex-direction:column;gap:6px;padding:5px 12px 7px}
+      .dg-filter-field{display:flex;align-items:center;gap:5px;width:100%;min-width:0;height:24px;padding:0 6px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:6px;background:var(--dsw-alias-bg-layer-1);color:var(--dsw-alias-label-secondary)}
+      .dg-filter-field:focus-within{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:-1px;border-color:transparent}
+      .dg-filter-input{flex:1;min-width:0;height:100%;padding:0;border:0;background:transparent;color:var(--dsw-alias-label-primary);font:inherit;font-size:11.5px}
+      .dg-filter-input:focus{outline:none}
+      .dg-filter-input::placeholder{color:var(--dsw-alias-label-secondary)}
+      .dg-filter-clear{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;padding:0;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dg-filter-clear:hover{background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dg-filter-clear:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:0}
+      .dg-filter-anchor{display:flex;flex-direction:column;gap:6px;min-width:0}
+      .dg-filter-toggle{display:inline-flex;align-items:center;justify-content:center;width:16px;height:16px;flex:none;padding:0;border:0;border-radius:4px;background:transparent;color:var(--dsw-alias-label-secondary);cursor:pointer}
+      .dg-filter-toggle:hover:not(:disabled){background:var(--dsw-alias-bg-layer-2);color:var(--dsw-alias-label-primary)}
+      .dg-filter-toggle:disabled{opacity:.45;cursor:default}
+      .dg-filter-toggle:focus-visible{outline:2px solid var(--dsw-alias-brand-primary);outline-offset:0}
+      .dg-filter-toggle[aria-expanded="true"]{color:var(--dsw-alias-brand-primary)}
+      .dg-filter-toggle svg{transition:transform .12s ease}
+      .dg-filter-toggle[aria-expanded="true"] svg{transform:rotate(180deg)}
+      .dg-author-list{max-height:320px;overflow:auto;padding:3px;border:0.5px solid var(--dsw-alias-border-l2);border-radius:7px;background:var(--dsw-alias-bg-overlay)}
+      .dg-author-item{align-items:center}
+      .dg-author-item .dg-menu-item-main{flex:1}
       .dg-diff{display:flex;flex-direction:column;min-width:0;min-height:0;background:var(--dsw-alias-bg-base)}
       .dg-diff-head{display:flex;align-items:center;justify-content:space-between;gap:12px;flex:none;min-height:45px;padding:8px 16px;border-bottom:0.5px solid var(--dsw-alias-border-l1)}
       .dg-diff-title{display:flex;align-items:center;gap:8px;min-width:0;flex:1}
@@ -590,7 +624,7 @@ window.__ModuleLoader__.load({
       .dg-manager-spacer{flex:1}
       .dg-spin{animation:dg-spin .9s linear infinite}
       @keyframes dg-spin{to{transform:rotate(360deg)}}
-      @media (prefers-reduced-motion: reduce){.dg-spin{animation:none}}
+      @media (prefers-reduced-motion: reduce){.dg-spin{animation:none}.dg-filter-toggle svg{transition:none}}
       @media (max-width:900px){
         .dg-body{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(260px,42%) minmax(0,1fr)}
         .dg-side{border-right:0;border-bottom:0.5px solid var(--dsw-alias-border-l1)}
@@ -925,6 +959,10 @@ window.__ModuleLoader__.load({
       h('path', { key: 'b', d: 'M12.6 10.4l.6 1.5 1.5.6-1.5.6-.6 1.5-.6-1.5-1.5-.6 1.5-.6z' }),
     ])
     const CloseIcon = makeIcon([h('path', { key: 'a', d: 'M4 4l8 8M12 4l-8 8' })])
+    const SearchIcon = makeIcon([
+      h('circle', { key: 'a', cx: 7, cy: 7, r: 4.2 }),
+      h('path', { key: 'b', d: 'M10.2 10.2l3.4 3.4' }),
+    ])
 
     //#endregion
 
@@ -1299,12 +1337,56 @@ window.__ModuleLoader__.load({
     }
 
     function HistorySection({
-      t, commits, open, onToggle, selected, onSelect, diff, commitFile, onSelectCommitFile,
+      t, commits, totalCount, open, onToggle, selected, onSelect, diff, commitFile, onSelectCommitFile,
+      authorFilter, onAuthorFilter, authors = [],
     }) {
+      const filtering = authorFilter.trim() !== ''
+      const total = Number.isFinite(totalCount) ? totalCount : commits.length
+      const inputRef = useRef(null)
+      const anchorRef = useRef(null)
+      const listRef = useRef(null)
+      const [authorMenuOpen, setAuthorMenuOpen] = useState(false)
+      const clearFilter = () => {
+        onAuthorFilter('')
+        inputRef.current?.focus?.()
+      }
+      const query = authorFilter.trim().toLowerCase()
+      const authorOptions = query === ''
+        ? authors
+        : authors.filter((entry) => (
+          entry.name.toLowerCase().includes(query)
+          || (entry.emails ?? []).some((email) => email.toLowerCase().includes(query))
+        ))
+      useEffect(() => {
+        if (!open || authors.length === 0) setAuthorMenuOpen(false)
+      }, [authors.length, open])
+      useEffect(() => {
+        if (authorMenuOpen) listRef.current?.scrollIntoView?.({ block: 'nearest' })
+      }, [authorMenuOpen])
+      useEffect(() => {
+        if (!authorMenuOpen) return undefined
+        const onPointerDown = (event) => {
+          if (anchorRef.current !== null && !anchorRef.current.contains(event.target)) {
+            setAuthorMenuOpen(false)
+          }
+        }
+        const onKeyDown = (event) => {
+          if (event.key !== 'Escape') return
+          setAuthorMenuOpen(false)
+          inputRef.current?.focus?.()
+        }
+        document.addEventListener('mousedown', onPointerDown, true)
+        document.addEventListener('keydown', onKeyDown)
+        return () => {
+          document.removeEventListener('mousedown', onPointerDown, true)
+          document.removeEventListener('keydown', onKeyDown)
+        }
+      }, [authorMenuOpen])
       const rows = []
       if (open) {
         if (commits.length === 0) {
-          rows.push(h('div', { key: 'empty', className: 'dg-section-empty' }, t('noCommits')))
+          rows.push(h('div', { key: 'empty', className: 'dg-section-empty' },
+            t(total === 0 ? 'noCommits' : 'noAuthorCommits')))
         } else {
           for (const commitEntry of commits) {
             const isSelected = selected !== null && selected.kind === 'commit' && selected.hash === commitEntry.hash
@@ -1354,12 +1436,98 @@ window.__ModuleLoader__.load({
                 isSelected ? h(ChevronDown, { size: 10 }) : h(ChevronRight, { size: 10 })),
               h('span', { className: 'dg-hash' }, commitEntry.short),
               h('span', { className: 'dg-subject', title: commitEntry.subject }, commitEntry.subject)),
-            h('span', { className: 'dg-commit-meta' },
-              `${commitEntry.author} · ${relativeTime(commitEntry.date, t)}`)),
+            h('span', {
+              className: 'dg-commit-meta',
+              title: typeof commitEntry.email === 'string' && commitEntry.email !== ''
+                ? `${commitEntry.author} <${commitEntry.email}>`
+                : undefined,
+            }, `${commitEntry.author} · ${relativeTime(commitEntry.date, t)}`)),
             fileRows.length > 0 ? h('div', { className: 'dg-commit-files' }, fileRows) : null))
           }
         }
       }
+      const showFilter = total > 0 || filtering
+      const filterRow = h('div', { key: 'filter', className: 'dg-history-filter' },
+        h('div', { className: 'dg-filter-anchor', ref: anchorRef },
+          h('div', { className: 'dg-filter-field' },
+            h(SearchIcon, { size: 12 }),
+            h('input', {
+              ref: inputRef,
+              type: 'text',
+              className: 'dg-filter-input',
+              value: authorFilter,
+              placeholder: t('filterAuthor'),
+              title: t('filterAuthorHint'),
+              'aria-label': t('filterAuthor'),
+              spellCheck: false,
+              onChange: (event) => onAuthorFilter(event.target.value),
+              onKeyDown: (event) => {
+                if (event.key !== 'Escape') return
+                event.preventDefault()
+                event.stopPropagation()
+                if (authorMenuOpen) {
+                  setAuthorMenuOpen(false)
+                  return
+                }
+                if (authorFilter === '') return
+                clearFilter()
+              },
+            }),
+            authorFilter !== ''
+              ? h('button', {
+                type: 'button',
+                className: 'dg-filter-clear',
+                title: t('clearFilter'),
+                'aria-label': t('clearFilter'),
+                onClick: clearFilter,
+              }, h(CloseIcon, { size: 10 }))
+              : null,
+            h('button', {
+              type: 'button',
+              className: 'dg-filter-toggle',
+              title: t('chooseAuthor'),
+              'aria-label': t('chooseAuthor'),
+              'aria-haspopup': 'menu',
+              'aria-expanded': authorMenuOpen,
+              disabled: authors.length === 0,
+              onClick: () => setAuthorMenuOpen((current) => !current),
+            }, h(ChevronDown, { size: 11 }))),
+          authorMenuOpen
+            ? h('div', {
+              ref: listRef,
+              className: 'dg-author-list',
+              role: 'menu',
+              'aria-label': t('chooseAuthor'),
+            },
+            h('div', { key: 'label', className: 'dg-menu-label' }, t('chooseAuthor')),
+            authorOptions.length === 0
+              ? h('div', { key: 'empty', className: 'dg-menu-empty' }, t('noMatchingAuthors'))
+              : authorOptions.map((entry) => {
+                const current = entry.name === authorFilter
+                return h('button', {
+                  key: entry.name,
+                  type: 'button',
+                  role: 'menuitem',
+                  className: 'dg-menu-item dg-author-item',
+                  'data-current': current ? 'true' : 'false',
+                  onClick: () => {
+                    onAuthorFilter(entry.name)
+                    setAuthorMenuOpen(false)
+                    inputRef.current?.focus?.()
+                  },
+                },
+                h('span', { className: 'dg-menu-check' }, current ? h(CheckIcon, { size: 12 }) : null),
+                h('span', { className: 'dg-menu-item-main' },
+                  h('span', { className: 'dg-menu-item-title' }, entry.name),
+                  (entry.emails ?? []).length > 0
+                    ? h('span', {
+                      className: 'dg-menu-item-path',
+                      title: entry.emails.join(', '),
+                    }, entry.emails[0])
+                    : null),
+                h('span', { className: 'dg-count' }, entry.count))
+              }))
+            : null))
       return h('section', { className: 'dg-section' },
         h('div', { className: 'dg-section-head' },
           h('button', {
@@ -1370,8 +1538,13 @@ window.__ModuleLoader__.load({
           },
           open ? h(ChevronDown, { size: 11 }) : h(ChevronRight, { size: 11 }),
           h('span', { className: 'dg-section-title' }, t('history')),
-          h('span', { className: 'dg-count' }, commits.length))),
-        open ? rows : null)
+          h('span', {
+            className: 'dg-count',
+            'aria-live': filtering ? 'polite' : undefined,
+            'aria-label': filtering ? t('filteredCount', { n: commits.length, total }) : undefined,
+            title: filtering ? t('filteredCount', { n: commits.length, total }) : undefined,
+          }, filtering ? `${commits.length}/${total}` : total))),
+        open ? (showFilter ? [filterRow, ...rows] : rows) : null)
     }
 
     //#endregion
@@ -1445,7 +1618,7 @@ window.__ModuleLoader__.load({
           onChange: (event) => onMessage(event.target.value),
           onKeyDown,
         }),
-        h('div', { className: 'dg-commit-row' },
+        h('div', { className: 'dg-commit-options' },
           h('label', { className: 'dg-check', title: t('amendHint') },
             h('input', {
               type: 'checkbox',
@@ -1823,6 +1996,7 @@ window.__ModuleLoader__.load({
       const [message, setMessage] = useState('')
       const [generatingMessage, setGeneratingMessage] = useState(false)
       const [amend, setAmend] = useState(false)
+      const [authorFilter, setAuthorFilter] = useState('')
       const [menu, setMenu] = useState(null)
       const [branchDraft, setBranchDraft] = useState('')
       const [discardTargets, setDiscardTargets] = useState(null)
@@ -1990,6 +2164,7 @@ window.__ModuleLoader__.load({
         setScanTruncated(false)
         setEnabled(readEnabledList(workspacePath))
         setActiveRepoPath(readActiveRepo(workspacePath))
+        setAuthorFilter('')
         messageSeq.current += 1
         setGeneratingMessage(false)
         if (!workspacePath) {
@@ -2011,6 +2186,7 @@ window.__ModuleLoader__.load({
         setMenu(null)
         setDiscardTargets(null)
         setCollapsedDirs(new Set())
+        setAuthorFilter('')
         messageSeq.current += 1
         setGeneratingMessage(false)
         if (!activeRepoPath) {
@@ -2176,6 +2352,35 @@ window.__ModuleLoader__.load({
       const conflicts = snapshot?.conflicts ?? []
       const branches = snapshot?.branches ?? []
       const commits = snapshot?.commits ?? []
+      const commitAuthors = useMemo(() => {
+        const authors = new Map()
+        for (const commitEntry of commits) {
+          const name = typeof commitEntry.author === 'string' ? commitEntry.author.trim() : ''
+          if (name === '') continue
+          const entry = authors.get(name) ?? { name, count: 0, emails: [] }
+          entry.count += 1
+          const email = typeof commitEntry.email === 'string' ? commitEntry.email.trim() : ''
+          if (email !== '' && !entry.emails.includes(email)) entry.emails.push(email)
+          authors.set(name, entry)
+        }
+        return [...authors.values()]
+          .sort((left, right) => right.count - left.count || left.name.localeCompare(right.name))
+      }, [commits])
+      const authorQuery = authorFilter.trim().toLowerCase()
+      const visibleCommits = useMemo(() => {
+        if (authorQuery === '') return commits
+        return commits.filter((commitEntry) => (
+          String(commitEntry.author ?? '').toLowerCase().includes(authorQuery)
+          || String(commitEntry.email ?? '').toLowerCase().includes(authorQuery)
+        ))
+      }, [authorQuery, commits])
+      // A commit hidden by the author filter must not keep the right pane.
+      useEffect(() => {
+        if (authorQuery === '' || selected === null || selected.kind !== 'commit') return
+        if (visibleCommits.some((entry) => entry.hash === selected.hash)) return
+        setSelected(null)
+        setCommitFile(null)
+      }, [authorQuery, selected, visibleCommits])
       const stagedCount = staged.length
       const unstagedCount = unstaged.length
       const canGenerate = stagedCount + unstagedCount + conflicts.length > 0
@@ -2986,7 +3191,8 @@ window.__ModuleLoader__.load({
               }),
               h(HistorySection, {
                 t,
-                commits,
+                commits: visibleCommits,
+                totalCount: commits.length,
                 open: openSections.history,
                 onToggle: () => toggleSection('history'),
                 selected,
@@ -2994,6 +3200,9 @@ window.__ModuleLoader__.load({
                 diff,
                 commitFile,
                 onSelectCommitFile: selectCommitFile,
+                authorFilter,
+                onAuthorFilter: setAuthorFilter,
+                authors: commitAuthors,
               }))),
           h(DiffPane, {
             t,

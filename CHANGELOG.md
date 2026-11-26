@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.1
+
+- Fixed the commit box's amend row overlapping the staged count: the row shared the `dg-commit-row` class with history rows and inherited their block layout.
+- Added a committer filter to **Recent commits**: it matches a name or email, its picker lists the loaded committers with their emails and commit counts, and the section badge shows the matched count.
+
 ## 1.2.0
 
 - Added a tree/list toggle for the change groups; the choice is remembered in the browser.

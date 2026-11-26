@@ -30,7 +30,7 @@ The plugin is a bundle with two halves:
 | Commit | Message box with a per-repository draft, `Ctrl`/`Cmd`+`Enter`, amend, staged count, stage-all, and AI message generation from the changes. |
 | AI model | The commit box defaults to the profile's new-session model and can pin another provider/model from the profile's adapters for message generation; the choice is remembered in this browser. |
 | Diff | Unified patches with old/new line numbers, hunk headers, add/remove colouring, binary and truncated notices, and a 1,500-line render cap with "show all". |
-| History | The 40 most recent commits; selecting one shows its metadata, a collapsible changed-file list with statuses, and the patch. Selecting a changed file focuses that file's patch. |
+| History | The 40 most recent commits, filterable by committer name or email, with a picker that lists the loaded committers, their emails, and their commit counts; selecting a commit shows its metadata, a collapsible changed-file list with statuses, and the patch. Selecting a changed file focuses that file's patch. |
 | Branches | Local branch menu with upstream, current marker, switch, create, delete, **Publish branch**, and **Set upstream**. |
 | Upstream | The branch menu lists configured remotes and their fetched branches; point the current local branch at any of them without leaving the panel. |
 | Remotes | **Manage remotes** adds or removes remote repositories, lists their URLs, and fetches all remotes. |
@@ -109,7 +109,11 @@ both fields together:
    an already-fetched remote branch). For a local repository with no remote,
    open **Manage remotes** first, add the remote, fetch it, then set the
    upstream. Sync from the toolbar. Selecting a commit in **History** lists its
-   changed files; click one to focus its patch.
+   changed files; click one to focus its patch. Type in the **Filter by author**
+   box above the commit list to show only commits by one committer, or use its
+   picker button to choose a committer from the loaded history (each entry shows
+   how many commits that person authored). The box matches name or email, and
+   the section badge shows how many commits match (for example `6/40`).
 
 The page is root-scoped, so it remains usable with no Session selected. It
 polls the active repository every five seconds while the page is visible and
@@ -247,6 +251,8 @@ the Actions tab (`workflow_dispatch`).
 - **Manage remotes** can add and remove repositories, but does not edit an
   existing URL. Removing a remote clears the upstream of branches that tracked it.
 - No line-level (hunk) staging or inline diff editing.
+- The **Recent commits** author filter narrows the 40 commits the panel already
+  loads; it does not run a `git log --author` query over older history.
 - AI message generation depends on the profile's default model; the prompt diff
   is truncated at 24,000 characters, and the message appears only after the
   model stream completes.
